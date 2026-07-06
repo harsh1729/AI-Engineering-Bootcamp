@@ -2,6 +2,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 from enums import MessageRole
+from .llm_usage import LLMUsage
 
 class LLMResponse(BaseModel):
     id: str
@@ -11,10 +12,6 @@ class LLMResponse(BaseModel):
 
     text: str
 
-    input_tokens: int
-    output_tokens: int
-    total_tokens: int
-
     finish_reason: str | None = None
 
     tool_calls: list = Field(default_factory=list)
@@ -22,3 +19,5 @@ class LLMResponse(BaseModel):
     reasoning: str | None = None
 
     raw_response: Any | None = None
+
+    usage: LLMUsage | None = None

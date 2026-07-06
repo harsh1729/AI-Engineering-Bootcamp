@@ -13,31 +13,22 @@ request = LLMRequest(
         ),
         LLMMessage(
             role=MessageRole.SYSTEM,
-            content="Answer from the teachings of Ramana Maharishi in Hindi.",
-        ),
-        LLMMessage(
-            role=MessageRole.SYSTEM,
             content="Keep the explanation under 100 words.",
         ),
         LLMMessage(
-            role=MessageRole.SYSTEM,
-            content="Use simple language suitable for a 12-year-old.",
-        ),
-        LLMMessage(
             role=MessageRole.USER,
-            content="Explain Brahman in Advaita Vedanta.",
+            content="What is self realization.",
         ),
     ],
     temperature=0.2,
     max_tokens=300,
 )
 
-response = provider.generate(request)
+# response = provider.generate(request)
 
-print(response.text)
-print()
+# print(response.text)
+# print(f"Finish Reason : {response.finish_reason}")
+# print(f"LLMUsage  : {response.usage}")
 
-print(f"Finish Reason : {response.finish_reason}")
-print(f"Input Tokens  : {response.input_tokens}")
-print(f"Output Tokens : {response.output_tokens}")
-print(f"Total Tokens  : {response.total_tokens}")
+for chunk in provider.generate_stream(request):
+    print(chunk.text, end="", flush=True)

@@ -1,20 +1,21 @@
-from models import LLMMessage
+from models import LLMRequest
 from enums import MessageRole
 
-from serializers import LLMMessageSerializer
+from serializers import BaseRequestSerializer
+from config import ANTHROPIC_MODEL
 
 
-class ClaudeMessageSerializer(LLMMessageSerializer):
+class ClaudeRequestSerializer(BaseRequestSerializer):
 
-    def serialize_messages(
+    def serialize(
         self,
-        messages: list[LLMMessage],
+        request: LLMRequest,
     ) -> dict:
 
         system_messages = []
         claude_messages = []
 
-        for message in messages:
+        for message in request.messages:
 
             if message.role == MessageRole.SYSTEM:
                 system_messages.append(message.content)
@@ -28,6 +29,9 @@ class ClaudeMessageSerializer(LLMMessageSerializer):
                 )
 
         return {
+
+            "model": ANTHROPIC_MODEL,
+            "max_tokens": request.max_tokens,
             "system": "\n\n".join(system_messages) if system_messages else None,
             "messages": claude_messages,
         }
