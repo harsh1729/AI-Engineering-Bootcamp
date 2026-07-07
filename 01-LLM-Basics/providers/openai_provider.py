@@ -1,5 +1,6 @@
 from openai import OpenAI
 from typing import Generator
+from pprint import pprint
 
 from config import OPENAI_API_KEY
 from providers import LLMProvider
@@ -34,6 +35,8 @@ class OpenAIProvider(LLMProvider):
         payload = self.request_serializer.serialize(request)
          
         payload["stream"] = True
+
+        #pprint(payload)
          
         stream = self.client.responses.create(**payload)
 

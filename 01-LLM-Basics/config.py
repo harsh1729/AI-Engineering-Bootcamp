@@ -16,6 +16,6 @@ if not ANTHROPIC_API_KEY:
 OPENAI_MODEL = "gpt-4.1-mini"
 ANTHROPIC_MODEL = "claude-opus-4-8"
 
-LLM_PROVIDER = ProviderType.CLAUDE  
+LLM_PROVIDER = ProviderType.OPENAI  
 
     
