@@ -1,6 +1,10 @@
-from pydantic import BaseModel
+from pydantic import BaseModel,Field
 
+from .tools.llm_tool_call import LLMToolCall
 
 class LLMResponseChunk(BaseModel):
-    text: str
+    text: str | None = None
+    
+    tool_call: LLMToolCall | None = None
+
     is_finished: bool = False

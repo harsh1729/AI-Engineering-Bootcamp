@@ -10,35 +10,41 @@ from enums import ProviderType
 class OpenAIResponseSerializer(BaseResponseSerializer):
 
     def serialize(
-        self,
-        response ,
-    ) -> LLMResponse:
-        
+    self,
+    response,
+) -> LLMResponse:
+
         usage = LLMUsage(
             input_tokens=response.usage.input_tokens,
             output_tokens=response.usage.output_tokens,
         )
 
-        output = response.output[0]
+        tool_calls = [
+            LLMToolCall(
+                id=item.id,
+                call_id=item.call_id,
+                name=item.name,
+                arguments=json.loads(item.arguments),
+            )
+            for item in response.output
+            if isinstance(item, ResponseFunctionToolCall)
+        ]
+
+        assistant_message = next(
+            (item for item in response.output if getattr(item, "role", None)),
+            None,
+        )
 
         return LLMResponse(
             id=response.id,
             provider=ProviderType.OPENAI,
             model=response.model,
 
-            #we may not receive text or role like in case of tools call
-            role=getattr(output, "role", None),
-            text = response.output_text if response.output_text else None,
+            role=assistant_message.role if assistant_message else None,
+            text=response.output_text if response.output_text else None,
 
-            finish_reason=response.status, 
-            tool_calls=[
-                LLMToolCall(
-                    id=output.id,
-                    call_id=output.call_id,
-                    name=output.name,
-                    arguments=json.loads(output.arguments),
-                )
-            ] if isinstance(output, ResponseFunctionToolCall) else [],
+            finish_reason=response.status,
+            tool_calls=tool_calls,
             reasoning=None,
             raw_response=response,
             usage=usage,

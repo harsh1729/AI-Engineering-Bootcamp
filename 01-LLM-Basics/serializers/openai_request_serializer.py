@@ -2,6 +2,7 @@ from models import LLMMessage,LLMRequest
 from models.tools import LLMTool, LLMToolParam
 from serializers import BaseRequestSerializer
 from config import OPENAI_MODEL
+from enums import MessageRole
 
 
 class OpenAIRequestSerializer(BaseRequestSerializer):
@@ -35,9 +36,46 @@ class OpenAIRequestSerializer(BaseRequestSerializer):
     message: LLMMessage,
     ) -> dict:
 
+        
+        if message.role == MessageRole.TOOL:
+            return self._serialize_tool_message(message)
+
+        if message.tool_calls:
+            return self._serialize_assistant_tool_call_message(message)
+
+        return self._serialize_chat_message(message)
+    
+
+    def _serialize_chat_message(
+    self,
+    message: LLMMessage,
+    ) -> dict:
+
         return {
             "role": message.role.value,
             "content": message.content,
+        }
+
+    
+    def serialize_function_outputs(
+    self,
+    request: LLMRequest,
+    previous_response_id: str,
+    tool_results: list[dict],
+    ) -> dict:
+        return {
+            "model": OPENAI_MODEL,
+            "previous_response_id": previous_response_id,
+            "temperature": request.temperature,
+            "max_output_tokens": request.max_tokens,
+            "input": [
+                {
+                    "type": "function_call_output",
+                    "call_id": tool_result["tool_call"].call_id,
+                    "output": str(tool_result["result"]),
+                }
+                for tool_result in tool_results
+            ],
         }
     
 
