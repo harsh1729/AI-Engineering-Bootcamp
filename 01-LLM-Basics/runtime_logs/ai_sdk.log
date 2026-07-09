@@ -1,0 +1,126 @@
+2026-07-09 19:56:03,783 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_weather' with arguments {'location': 'Delhi'}
+2026-07-09 19:56:05,500 | INFO     | ai_sdk.providers.openai_provider | Tool 'get_weather' completed in 1.717 seconds.
+2026-07-09 19:56:05,501 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_current_time' with arguments {'timezone': 'Asia/Kolkata', 'time_format': '24h'}
+2026-07-09 19:56:05,506 | INFO     | ai_sdk.providers.openai_provider | Tool 'get_current_time' completed in 0.005 seconds.
+2026-07-09 19:56:05,506 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'convert_currency' with arguments {'amount': 1, 'from_currency': 'USD', 'to_currency': 'INR'}
+2026-07-09 19:56:07,502 | INFO     | ai_sdk.providers.openai_provider | Tool 'convert_currency' completed in 1.996 seconds.
+2026-07-09 20:14:30,052 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_weather' with arguments {'location': 'Delhi'}
+2026-07-09 20:14:32,699 | INFO     | ai_sdk.providers.openai_provider | Tool 'get_weather' completed in 2.647 seconds.
+2026-07-09 20:14:32,700 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_current_time' with arguments {'timezone': 'Asia/Kolkata', 'time_format': '24h'}
+2026-07-09 20:14:32,701 | INFO     | ai_sdk.providers.openai_provider | Tool 'get_current_time' completed in 0.001 seconds.
+2026-07-09 20:14:32,701 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'convert_currency' with arguments {'amount': 1, 'from_currency': 'USD', 'to_currency': 'INR'}
+2026-07-09 20:14:38,312 | INFO     | ai_sdk.providers.openai_provider | Tool 'convert_currency' completed in 5.612 seconds.
+2026-07-09 20:54:52,754 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_weather' with arguments {'location': 'Delhi'}
+2026-07-09 20:54:52,755 | ERROR    | ai_sdk.providers.openai_provider | Tool 'get_weather' failed after 0.001 seconds.
+Traceback (most recent call last):
+  File "/Users/harsh/Documents/AI-Engineering-Bootcamp/01-LLM-Basics/providers/openai_provider.py", line 171, in _execute_tools
+    result = tool(**tool_call.arguments)
+  File "/Users/harsh/Documents/AI-Engineering-Bootcamp/01-LLM-Basics/tool_functions/weather.py", line 12, in get_weather
+    return weather_service.get_weather(location)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/harsh/Documents/AI-Engineering-Bootcamp/01-LLM-Basics/services/weather_service.py", line 14, in get_weather
+    raise TimeoutError("Weather API timed out.")
+TimeoutError: Weather API timed out.
+2026-07-09 20:54:52,757 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_current_time' with arguments {'timezone': 'Asia/Kolkata', 'time_format': '24h'}
+2026-07-09 20:54:52,757 | INFO     | ai_sdk.providers.openai_provider | Tool 'get_current_time' completed successfully in 0.000 seconds.
+2026-07-09 20:54:52,757 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'convert_currency' with arguments {'amount': 1, 'from_currency': 'USD', 'to_currency': 'INR'}
+2026-07-09 20:54:55,099 | INFO     | ai_sdk.providers.openai_provider | Tool 'convert_currency' completed successfully in 2.342 seconds.
+2026-07-09 21:12:30,692 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_weather' with arguments {'location': 'Delhi'}
+2026-07-09 21:12:30,697 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_current_time' with arguments {'timezone': 'Asia/Kolkata', 'time_format': '24h'}
+2026-07-09 21:12:30,699 | INFO     | ai_sdk.providers.openai_provider | Tool 'get_current_time' completed successfully in 0.002 seconds.
+2026-07-09 21:12:30,699 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'convert_currency' with arguments {'amount': 1, 'from_currency': 'USD', 'to_currency': 'INR'}
+2026-07-09 21:12:31,803 | INFO     | ai_sdk.providers.openai_provider | Tool 'convert_currency' completed successfully in 1.104 seconds.
+2026-07-09 21:16:41,644 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_weather' with arguments {'location': 'Delhi'}
+2026-07-09 21:16:41,644 | ERROR    | ai_sdk.providers.openai_provider | Tool 'get_weather' failed after 0.000 seconds. TimeoutError: Weather API timed out.
+Traceback (most recent call last):
+  File "/Users/harsh/Documents/AI-Engineering-Bootcamp/01-LLM-Basics/providers/openai_provider.py", line 170, in _execute_tools
+    result = tool(**tool_call.arguments)
+  File "/Users/harsh/Documents/AI-Engineering-Bootcamp/01-LLM-Basics/tool_functions/weather.py", line 12, in get_weather
+    return weather_service.get_weather(location)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/harsh/Documents/AI-Engineering-Bootcamp/01-LLM-Basics/services/weather_service.py", line 14, in get_weather
+    raise TimeoutError("Weather API timed out.") #It was meant for testing tool exception handling
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: Weather API timed out.
+2026-07-09 21:16:41,646 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_current_time' with arguments {'timezone': 'Asia/Kolkata', 'time_format': '24h'}
+2026-07-09 21:16:41,646 | INFO     | ai_sdk.providers.openai_provider | Tool 'get_current_time' completed successfully in 0.000 seconds.
+2026-07-09 21:16:41,646 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'convert_currency' with arguments {'amount': 1, 'from_currency': 'USD', 'to_currency': 'INR'}
+2026-07-09 21:16:42,587 | INFO     | ai_sdk.providers.openai_provider | Tool 'convert_currency' completed successfully in 0.941 seconds.
+2026-07-09 21:19:55,264 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_weather' with arguments {'location': 'Delhi'}
+2026-07-09 21:19:55,265 | ERROR    | ai_sdk.providers.openai_provider | Tool 'get_weather' failed after 0.001 seconds. TimeoutError: Weather API timed out.
+Traceback (most recent call last):
+  File "/Users/harsh/Documents/AI-Engineering-Bootcamp/01-LLM-Basics/providers/openai_provider.py", line 170, in _execute_tools
+    result = tool(**tool_call.arguments)
+  File "/Users/harsh/Documents/AI-Engineering-Bootcamp/01-LLM-Basics/tool_functions/weather.py", line 12, in get_weather
+    return weather_service.get_weather(location)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/harsh/Documents/AI-Engineering-Bootcamp/01-LLM-Basics/services/weather_service.py", line 14, in get_weather
+    raise TimeoutError("Weather API timed out.") #It was meant for testing tool exception handling
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: Weather API timed out.
+2026-07-09 21:19:55,266 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_current_time' with arguments {'timezone': 'Asia/Kolkata', 'time_format': '24h'}
+2026-07-09 21:19:55,267 | INFO     | ai_sdk.providers.openai_provider | Tool 'get_current_time' completed successfully in 0.000 seconds.
+2026-07-09 21:19:55,267 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'convert_currency' with arguments {'amount': 1, 'from_currency': 'USD', 'to_currency': 'INR'}
+2026-07-09 21:19:56,867 | INFO     | ai_sdk.providers.openai_provider | Tool 'convert_currency' completed successfully in 1.600 seconds.
+2026-07-09 21:23:15,352 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_weather' with arguments {'location': 'Delhi'}
+2026-07-09 21:23:15,353 | ERROR    | ai_sdk.providers.openai_provider | Tool 'get_weather' failed after 0.001 seconds. TimeoutError: Weather API timed out.
+Traceback (most recent call last):
+  File "/Users/harsh/Documents/AI-Engineering-Bootcamp/01-LLM-Basics/providers/openai_provider.py", line 170, in _execute_tools
+    result = tool(**tool_call.arguments)
+  File "/Users/harsh/Documents/AI-Engineering-Bootcamp/01-LLM-Basics/tool_functions/weather.py", line 12, in get_weather
+    return weather_service.get_weather(location)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/harsh/Documents/AI-Engineering-Bootcamp/01-LLM-Basics/services/weather_service.py", line 14, in get_weather
+    raise TimeoutError("Weather API timed out.") #It was meant for testing tool exception handling
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: Weather API timed out.
+2026-07-09 21:23:15,355 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_current_time' with arguments {'timezone': 'Asia/Kolkata', 'time_format': '24h'}
+2026-07-09 21:23:15,355 | INFO     | ai_sdk.providers.openai_provider | Tool 'get_current_time' completed successfully in 0.000 seconds.
+2026-07-09 21:23:15,355 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'convert_currency' with arguments {'amount': 1, 'from_currency': 'USD', 'to_currency': 'INR'}
+2026-07-09 21:23:19,071 | INFO     | ai_sdk.providers.openai_provider | Tool 'convert_currency' completed successfully in 3.716 seconds.
+2026-07-09 21:28:46,079 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_weather' with arguments {'location': 'Delhi'}
+2026-07-09 21:28:46,080 | ERROR    | ai_sdk.providers.openai_provider | Tool 'get_weather' failed after 0.001 seconds. TimeoutError: Weather API timed out.
+Traceback (most recent call last):
+  File "/Users/harsh/Documents/AI-Engineering-Bootcamp/01-LLM-Basics/providers/openai_provider.py", line 170, in _execute_tools
+    result = tool(**tool_call.arguments)
+  File "/Users/harsh/Documents/AI-Engineering-Bootcamp/01-LLM-Basics/tool_functions/weather.py", line 12, in get_weather
+    return weather_service.get_weather(location)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "/Users/harsh/Documents/AI-Engineering-Bootcamp/01-LLM-Basics/services/weather_service.py", line 14, in get_weather
+    raise TimeoutError("Weather API timed out.") #It was meant for testing tool exception handling
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: Weather API timed out.
+2026-07-09 21:28:46,082 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_current_time' with arguments {'timezone': 'Asia/Kolkata', 'time_format': '24h'}
+2026-07-09 21:28:46,082 | INFO     | ai_sdk.providers.openai_provider | Tool 'get_current_time' completed successfully in 0.000 seconds.
+2026-07-09 21:28:46,082 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'convert_currency' with arguments {'amount': 1, 'from_currency': 'USD', 'to_currency': 'INR'}
+2026-07-09 21:28:48,107 | INFO     | ai_sdk.providers.openai_provider | Tool 'convert_currency' completed successfully in 2.025 seconds.
+2026-07-09 21:29:18,307 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_weather' with arguments {'location': 'Delhi'}
+2026-07-09 21:29:20,170 | INFO     | ai_sdk.providers.openai_provider | Tool 'get_weather' completed successfully in 1.864 seconds.
+2026-07-09 21:29:20,171 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_current_time' with arguments {'timezone': 'Asia/Kolkata', 'time_format': '24h'}
+2026-07-09 21:29:20,171 | INFO     | ai_sdk.providers.openai_provider | Tool 'get_current_time' completed successfully in 0.001 seconds.
+2026-07-09 21:29:20,171 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'convert_currency' with arguments {'amount': 1, 'from_currency': 'USD', 'to_currency': 'INR'}
+2026-07-09 21:29:21,136 | INFO     | ai_sdk.providers.openai_provider | Tool 'convert_currency' completed successfully in 0.965 seconds.
+2026-07-09 21:41:51,914 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_weather' with arguments {'location': 'Delhi'}
+2026-07-09 21:41:53,932 | INFO     | ai_sdk.providers.openai_provider | Tool 'get_weather' completed successfully in 2.018 seconds.
+2026-07-09 21:41:53,932 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_current_time' with arguments {'timezone': 'Asia/Kolkata', 'time_format': '24h'}
+2026-07-09 21:41:53,936 | INFO     | ai_sdk.providers.openai_provider | Tool 'get_current_time' completed successfully in 0.004 seconds.
+2026-07-09 21:41:53,937 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'convert_currency' with arguments {'amount': 1, 'from_currency': 'USD', 'to_currency': 'INR'}
+2026-07-09 21:41:57,265 | INFO     | ai_sdk.providers.openai_provider | Tool 'convert_currency' completed successfully in 3.328 seconds.
+2026-07-09 21:47:41,354 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_weather' with arguments {'location': 'London'}
+2026-07-09 21:47:43,545 | INFO     | ai_sdk.providers.openai_provider | Tool 'get_weather' completed successfully in 2.191 seconds.
+2026-07-09 21:47:43,546 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'get_current_time' with arguments {'timezone': 'Europe/London', 'time_format': '24h'}
+2026-07-09 21:47:54,556 | ERROR    | ai_sdk.providers.openai_provider | Tool 'get_current_time' failed after 11.010 seconds. TimeoutError: 
+Traceback (most recent call last):
+  File "/Users/harsh/Documents/AI-Engineering-Bootcamp/01-LLM-Basics/providers/openai_provider.py", line 173, in _execute_tools
+    result = self._execute_tool_with_timeout(
+        tool,
+        tool_call.arguments,
+    )
+  File "/Users/harsh/Documents/AI-Engineering-Bootcamp/01-LLM-Basics/providers/openai_provider.py", line 221, in _execute_tool_with_timeout
+    return future.result(timeout=TOOL_TIMEOUT_SECONDS)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.14/Frameworks/Python.framework/Versions/3.13/lib/python3.13/concurrent/futures/_base.py", line 462, in result
+    raise TimeoutError()
+TimeoutError
+2026-07-09 21:47:54,563 | INFO     | ai_sdk.providers.openai_provider | Executing tool 'convert_currency' with arguments {'amount': 1, 'from_currency': 'USD', 'to_currency': 'GBP'}
+2026-07-09 21:47:56,820 | INFO     | ai_sdk.providers.openai_provider | Tool 'convert_currency' completed successfully in 2.256 seconds.

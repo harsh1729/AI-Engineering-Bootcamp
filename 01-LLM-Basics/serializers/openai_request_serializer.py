@@ -1,8 +1,9 @@
 from models import LLMMessage,LLMRequest
-from models.tools import LLMTool, LLMToolParam
+from models.tools import LLMTool, LLMToolParam,LLMToolExecutionResult
 from serializers import BaseRequestSerializer
 from config import OPENAI_MODEL
 from enums import MessageRole
+import json
 
 
 class OpenAIRequestSerializer(BaseRequestSerializer):
@@ -61,7 +62,7 @@ class OpenAIRequestSerializer(BaseRequestSerializer):
     self,
     request: LLMRequest,
     previous_response_id: str,
-    tool_results: list[dict],
+    tool_results: list[LLMToolExecutionResult],
     ) -> dict:
         return {
             "model": OPENAI_MODEL,
@@ -71,8 +72,14 @@ class OpenAIRequestSerializer(BaseRequestSerializer):
             "input": [
                 {
                     "type": "function_call_output",
-                    "call_id": tool_result["tool_call"].call_id,
-                    "output": str(tool_result["result"]),
+                    "call_id": tool_result.tool_call.call_id,
+                    "output": json.dumps(
+                        {
+                            "success": tool_result.error is None,
+                            "result": tool_result.result,
+                            "error": tool_result.error,
+                        }
+                    ),
                 }
                 for tool_result in tool_results
             ],

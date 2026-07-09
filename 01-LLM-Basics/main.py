@@ -15,7 +15,7 @@ request = LLMRequest(
         
         LLMMessage(
             role=MessageRole.USER,
-            content="What's the weather and current time in Delhi? Also whats doolar in their currency?",
+            content="What's the weather and current time in London? Also whats doolar in their currency?",
         ),
     ],
     temperature=0.2,

@@ -1,17 +1,25 @@
 from openai import OpenAI
-from typing import Generator
-from pprint import pprint
-
+from typing import Generator,Any
+from collections.abc import Callable
+import time
 from openai.types.responses import ResponseCreatedEvent
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 from config import OPENAI_API_KEY
 from providers import LLMProvider
 from models import LLMResponse,LLMRequest,LLMResponseChunk
 from serializers import OpenAIRequestSerializer,OpenAIResponseSerializer,OpenAIResponseChunkSerializer
 from tool_functions import ToolRegistry
-from models.tools import LLMToolCall
+from models.tools import LLMToolCall,LLMToolExecutionResult
+from logs import get_logger
+
+
+logger = get_logger(__name__)
+TOOL_TIMEOUT_SECONDS = 10
 
 class OpenAIProvider(LLMProvider):
+
+    
 
     def __init__(self):
         self.client = OpenAI(api_key=OPENAI_API_KEY)
@@ -114,9 +122,6 @@ class OpenAIProvider(LLMProvider):
                     continue
 
             if len(tool_calls) > 0:
-
-                print("Total tool_calls ")
-                print(len(tool_calls))
                 tool_results = self._execute_tools(tool_calls)
 
                 payload = self.request_serializer.serialize_function_outputs(
@@ -144,24 +149,82 @@ class OpenAIProvider(LLMProvider):
     def _execute_tools(
     self,
     tool_calls: list[LLMToolCall],
-    ) -> list[dict]:
+    ) -> list[LLMToolExecutionResult]:
         
+      
         tool_results = []
 
         for tool_call in tool_calls:
 
             tool = ToolRegistry.get(tool_call.name)
 
-            result = tool(**tool_call.arguments)
+            start = time.perf_counter()
 
-            tool_results.append(
-                {
-                    "tool_call": tool_call,
-                    "result": result,
-                }
+            logger.info(
+                "Executing tool '%s' with arguments %s",
+                tool_call.name,
+                tool_call.arguments,
             )
+        
+
+            try:
+
+                result = tool(**tool_call.arguments)
+                
+            
+                elapsed = time.perf_counter() - start
+
+                logger.info(
+                    "Tool '%s' completed successfully in %.3f seconds.",
+                    tool_call.name,
+                    elapsed,
+                )
+
+                tool_results.append(
+                    LLMToolExecutionResult(
+                        tool_call=tool_call,
+                        result=result,
+                    )
+                )
+            
+            except Exception as ex:
+
+                elapsed = time.perf_counter() - start
+
+                logger.exception(
+                    "Tool '%s' failed after %.3f seconds. %s: %s",
+                    tool_call.name,
+                    elapsed,
+                    type(ex).__name__,
+                    ex,
+                )
+
+                tool_results.append(
+                    LLMToolExecutionResult(
+                        tool_call=tool_call,
+                        error=str(ex),
+                    )
+                )
+
 
         return tool_results
+    
+    
+    #HARSH: we wait for TOOL_TIMEOUT_SECONDS for tool execution else raise Timeout error
+    def _execute_tool_with_timeout(self, tool : Callable, arguments : dict[str, Any],) -> Any:
+         
+        """
+        HARSH Note:
+        If orchestration-level timeouts are implemented in the future,
+        avoid creating a new ThreadPoolExecutor for every execution using
+        a 'with' block. The context manager waits for worker threads to
+        finish during shutdown, which defeats the timeout. Instead, use a
+        shared executor with proper lifecycle management.
+        """
+        
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(tool, **arguments)
+            return future.result(timeout=TOOL_TIMEOUT_SECONDS)
     
     
     

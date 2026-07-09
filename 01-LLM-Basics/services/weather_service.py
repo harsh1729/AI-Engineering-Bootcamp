@@ -11,6 +11,8 @@ class WeatherService:
         location: str,
     ) -> str:
 
+        #raise TimeoutError("Weather API timed out.") #It was meant for testing tool exception handling
+    
         latitude, longitude, resolved_location = self._get_coordinates(location)
 
         weather = self._get_current_weather(latitude, longitude)
