@@ -15,11 +15,11 @@ request = LLMRequest(
         
         LLMMessage(
             role=MessageRole.USER,
-            content="What's the weather and current time in London? Also whats doolar in their currency?",
+            content="What's the weather in Paris? ?",
         ),
     ],
     temperature=0.2,
-    max_tokens=300,
+    max_tokens=400,
     tools=[
         CURRENT_TIME_TOOL,
         WEATHER_TOOL,
@@ -29,11 +29,11 @@ request = LLMRequest(
 
 
 # Code for complete response as one
-# response = provider.generate(request)
+# response = provider.generate_response(request)
 
 # print(response.text)
 
 
-# Code for stream message
+#Code for stream message
 for chunk in provider.generate_stream(request):
     print(chunk.text, end="", flush=True)

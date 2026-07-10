@@ -58,7 +58,7 @@ class OpenAIRequestSerializer(BaseRequestSerializer):
         }
 
     
-    def serialize_function_outputs(
+    def serialize_tool_results(
     self,
     request: LLMRequest,
     previous_response_id: str,
