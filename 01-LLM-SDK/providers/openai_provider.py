@@ -9,6 +9,8 @@ from models import LLMResponse,LLMRequest,LLMResponseChunk
 from serializers import OpenAIRequestSerializer,OpenAIResponseSerializer,OpenAIResponseChunkSerializer
 from models.tools import LLMToolCall
 
+from logs import get_logger
+logger = get_logger(__name__)
 
 class OpenAIProvider(LLMProvider):
 
@@ -26,8 +28,14 @@ class OpenAIProvider(LLMProvider):
         payload = self.request_serializer.serialize(request)
 
         #OpenAI Call
-        client_response = self.client.responses.create(**payload)
-        #Aprse to our data model
+        
+        try:
+            client_response = self.client.responses.create(**payload)
+        except Exception:
+            logger.exception("OpenAI API request failed.")
+            raise
+
+        #Parse to our data model
         llm_response = self.response_serializer.serialize(client_response)
 
         return self._finalize_response(request,llm_response)
@@ -66,7 +74,11 @@ class OpenAIProvider(LLMProvider):
          
         payload["stream"] = True
          
-        client_stream_response = self.client.responses.create(**payload)
+        try:
+            client_stream_response = self.client.responses.create(**payload)
+        except Exception:
+            logger.exception("OpenAI API request failed.")
+            raise
 
         yield from self._finalize_stream(request,client_stream_response)
 
@@ -111,16 +123,23 @@ class OpenAIProvider(LLMProvider):
             if len(tool_calls) > 0:
                 tool_results = self._execute_tools(tool_calls)
 
-                payload = self.request_serializer.serialize_function_outputs(
+                payload = self.request_serializer.serialize_tool_results(
                     request=request,
                     previous_response_id=stream_response_id,
                     tool_results=tool_results,
                 )
 
-                stream = self.client.responses.create(
-                    **payload,
-                    stream=True,
-                )
+                
+
+                try:
+                    stream = self.client.responses.create(
+                        **payload,
+                        stream=True,
+                    )
+                except Exception:
+                    logger.exception("OpenAI API request failed.")
+                    raise
+
 
                 continue
 

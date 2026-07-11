@@ -18,7 +18,7 @@ class OpenAIResponseChunkSerializer(BaseResponseChunkSerializer):
                 text=event.delta,
             )
         
-        #if it's a tool call we read DoneEvent rather than chunks
+        #if it's a tool call we read ResponseOutputItemDoneEvent & ResponseFunctionToolCall rather than ResponseTextDeltaEvent
         if (
             isinstance(event, ResponseOutputItemDoneEvent)
             and isinstance(event.item, ResponseFunctionToolCall)

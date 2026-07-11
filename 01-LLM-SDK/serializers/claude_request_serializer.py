@@ -108,7 +108,7 @@ class ClaudeRequestSerializer(BaseRequestSerializer):
     def serialize_tool_results(
     self,
     request: LLMRequest,
-    assistant_response,
+    assistant_content: list[dict],
     tool_results: list[LLMToolExecutionResult],
     ) -> dict:
 
@@ -117,7 +117,7 @@ class ClaudeRequestSerializer(BaseRequestSerializer):
         messages.append(
             {
                 "role": "assistant",
-                "content": assistant_response.content,
+                "content": assistant_content,
             }
         )
 

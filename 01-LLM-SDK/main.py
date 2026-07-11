@@ -15,7 +15,7 @@ request = LLMRequest(
         
         LLMMessage(
             role=MessageRole.USER,
-            content="What's the weather in Paris? ?",
+            content="Tell time , weather and currency conversion of London?",
         ),
     ],
     temperature=0.2,
@@ -29,11 +29,12 @@ request = LLMRequest(
 
 
 # Code for complete response as one
-# response = provider.generate_response(request)
-
-# print(response.text)
+response = provider.generate_response(request)
+if response is not None and response.text:
+    print(response.text)
 
 
 #Code for stream message
-for chunk in provider.generate_stream(request):
-    print(chunk.text, end="", flush=True)
+# for chunk in provider.generate_stream(request):
+#     if chunk.text is not None:
+#         print(chunk.text, end="")

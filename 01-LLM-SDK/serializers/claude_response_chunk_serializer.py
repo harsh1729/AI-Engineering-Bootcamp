@@ -1,4 +1,4 @@
-from anthropic.types import RawContentBlockDeltaEvent
+from anthropic.types import RawContentBlockDeltaEvent,RawMessageDeltaEvent,TextDelta,InputJSONDelta
 
 from models import LLMResponseChunk
 from serializers import BaseResponseChunkSerializer
@@ -6,14 +6,36 @@ from serializers import BaseResponseChunkSerializer
 
 class ClaudeResponseChunkSerializer(BaseResponseChunkSerializer):
 
+
+    
     def serialize(
         self,
         event,
     ) -> LLMResponseChunk | None:
+
+        #
+        # Stream assistant text.
+        #
         if isinstance(event, RawContentBlockDeltaEvent):
 
-            return LLMResponseChunk(
-                text=event.delta.text,
-            )
+            if isinstance(event.delta, TextDelta):
+                return LLMResponseChunk(
+                    text=event.delta.text,
+                )
+
+            #
+            # Tool arguments are reconstructed by ClaudeProvider.
+            #
+            if isinstance(event.delta, InputJSONDelta):
+                return None
+
+        #
+        # Mark stream finished only when Claude finishes its turn.
+        #
+        if isinstance(event, RawMessageDeltaEvent):
+            if event.delta.stop_reason == "end_turn":
+                return LLMResponseChunk(
+                    is_finished=True,
+                )
 
         return None
