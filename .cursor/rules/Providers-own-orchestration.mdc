@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+The Provider is responsible for coordinating the complete request lifecycle, including request serialization, API calls, streaming, tool-calling flow, retries, and response handling.

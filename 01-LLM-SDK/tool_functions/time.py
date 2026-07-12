@@ -18,8 +18,6 @@ def get_current_time(
 
     if time_format == "12h":
         return current_time.strftime("%Y-%m-%d %I:%M:%S %p")
-    
-    time.sleep(11)
 
     return current_time.strftime("%Y-%m-%d %H:%M:%S")
 
