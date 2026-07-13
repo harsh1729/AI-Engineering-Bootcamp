@@ -1,4 +1,4 @@
-from openai import OpenAI
+from openai import APIConnectionError, APIStatusError, InternalServerError, OpenAI, RateLimitError
 from typing import Generator
 
 from openai.types.responses import ResponseCreatedEvent
@@ -27,13 +27,10 @@ class OpenAIProvider(LLMProvider):
 
         payload = self.request_serializer.serialize(request)
 
-        #OpenAI Call
-        
-        try:
-            client_response = self.client.responses.create(**payload)
-        except Exception:
-            logger.exception("OpenAI API request failed.")
-            raise
+        client_response = self._call_with_retry(
+            lambda _: self.client.responses.create(**payload),
+            operation="OpenAI API request",
+        )
 
         #Parse to our data model
         llm_response = self.response_serializer.serialize(client_response)
@@ -57,7 +54,10 @@ class OpenAIProvider(LLMProvider):
             )
 
             response = self.response_serializer.serialize(
-                self.client.responses.create(**payload)
+                self._call_with_retry(
+                    lambda _: self.client.responses.create(**payload),
+                    operation="OpenAI API follow-up request",
+                )
             )
 
         return response
@@ -74,11 +74,10 @@ class OpenAIProvider(LLMProvider):
          
         payload["stream"] = True
          
-        try:
-            client_stream_response = self.client.responses.create(**payload)
-        except Exception:
-            logger.exception("OpenAI API request failed.")
-            raise
+        client_stream_response = self._call_with_retry(
+            lambda _: self.client.responses.create(**payload),
+            operation="OpenAI streaming API request",
+        )
 
         yield from self._finalize_stream(request,client_stream_response)
 
@@ -131,14 +130,10 @@ class OpenAIProvider(LLMProvider):
 
                 
 
-                try:
-                    stream = self.client.responses.create(
-                        **payload,
-                        stream=True,
-                    )
-                except Exception:
-                    logger.exception("OpenAI API request failed.")
-                    raise
+                stream = self._call_with_retry(
+                    lambda _: self.client.responses.create(**payload, stream=True),
+                    operation="OpenAI streaming follow-up request",
+                )
 
 
                 continue
@@ -150,6 +145,9 @@ class OpenAIProvider(LLMProvider):
             f"Maximum tool call depth ({MAX_TOOL_CALL_DEPTH}) exceeded."
         )
 
-    
-    
-    
+    def _is_retryable_error(self, exc: Exception) -> bool:
+
+        if isinstance(exc, (RateLimitError, APIConnectionError, InternalServerError)):
+            return True
+
+        return isinstance(exc, APIStatusError) and exc.status_code in (429, 500, 502, 503)

@@ -1,4 +1,4 @@
-from anthropic import Anthropic
+from anthropic import Anthropic, APIConnectionError, APIStatusError, InternalServerError, RateLimitError
 from typing import Generator
 from pprint import pprint 
 from anthropic.types import RawContentBlockStartEvent, RawContentBlockDeltaEvent, RawContentBlockStopEvent,RawMessageDeltaEvent
@@ -27,11 +27,10 @@ class ClaudeProvider(LLMProvider):
         
         payload = self.request_serializer.serialize(request)
 
-        try:
-            client_response = self.client.messages.create(**payload)
-        except Exception:
-            logger.exception("Claude API request failed.")
-            raise
+        client_response = self._call_with_retry(
+            lambda _: self.client.messages.create(**payload),
+            operation="Claude API request",
+        )
 
         llm_response = self.response_serializer.serialize(client_response)
     
@@ -52,7 +51,10 @@ class ClaudeProvider(LLMProvider):
             )
 
             response = self.response_serializer.serialize(
-                self.client.messages.create(**payload)
+                self._call_with_retry(
+                    lambda _: self.client.messages.create(**payload),
+                    operation="Claude API follow-up request",
+                )
             )
 
         return response
@@ -67,11 +69,10 @@ class ClaudeProvider(LLMProvider):
         payload = self.request_serializer.serialize(request)
         payload["stream"] = True
 
-        try:
-            client_stream = self.client.messages.create(**payload)
-        except Exception:
-            logger.exception("Claude streaming API request failed.")
-            raise
+        client_stream = self._call_with_retry(
+            lambda _: self.client.messages.create(**payload),
+            operation="Claude streaming API request",
+        )
 
         yield from self._finalize_stream(
             request=request,
@@ -205,17 +206,18 @@ class ClaudeProvider(LLMProvider):
             #
             # Continue streaming from Claude.
             #
-            try:
-                stream = self.client.messages.create(
-                    **payload,
-                    stream=True,
-                )
-            except Exception:
-                logger.exception(
-                    "Claude follow-up streaming API request failed."
-                )
-                raise
+            stream = self._call_with_retry(
+                lambda _: self.client.messages.create(**payload, stream=True),
+                operation="Claude streaming follow-up request",
+            )
 
         raise RuntimeError(
             f"Maximum tool call depth ({MAX_TOOL_CALL_DEPTH}) exceeded."
         )
+
+    def _is_retryable_error(self, exc: Exception) -> bool:
+
+        if isinstance(exc, (RateLimitError, APIConnectionError, InternalServerError)):
+            return True
+
+        return isinstance(exc, APIStatusError) and exc.status_code in (429, 500, 502, 503)

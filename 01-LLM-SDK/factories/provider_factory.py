@@ -1,14 +1,15 @@
 from config import LLM_PROVIDER
 from enums import ProviderType
-from providers import LLMProvider,OpenAIProvider,ClaudeProvider
+from providers import LLMProvider, OpenAIProvider, ClaudeProvider, GeminiProvider
 
 
 
 class ProviderFactory:
 
     PROVIDERS = {
-    ProviderType.OPENAI: OpenAIProvider,
-    ProviderType.CLAUDE:ClaudeProvider,
+        ProviderType.OPENAI: OpenAIProvider,
+        ProviderType.CLAUDE: ClaudeProvider,
+        ProviderType.GEMINI: GeminiProvider,
     }
 
     @staticmethod

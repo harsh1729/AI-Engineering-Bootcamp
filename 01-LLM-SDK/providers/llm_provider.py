@@ -1,18 +1,22 @@
 from abc import ABC, abstractmethod
-from typing import Generator,Any
-from models import LLMRequest,LLMResponse,LLMResponseChunk
+import random
 import time
-from tool_functions import ToolRegistry
-from collections.abc import Callable
-from models.tools import LLMToolCall,LLMToolExecutionResult
+from collections.abc import Callable, Generator, Iterable
+from typing import Any, TypeVar
 
-from concurrent.futures import ThreadPoolExecutor, TimeoutError
-
+from config import LLM_MAX_RETRIES, LLM_RETRY_BASE_DELAY_SECONDS
 from logs import get_logger
+from models import LLMRequest, LLMResponse, LLMResponseChunk
+from models.tools import LLMToolCall, LLMToolExecutionResult
+from tool_functions import ToolRegistry
 
+from concurrent.futures import ThreadPoolExecutor
 
 logger = get_logger(__name__)
 TOOL_TIMEOUT_SECONDS = 10
+
+T = TypeVar("T")
+
 
 class LLMProvider(ABC):
 
@@ -29,6 +33,102 @@ class LLMProvider(ABC):
         """Generate a response stream for the given prompt."""
         pass
 
+    def _get_retry_targets(self) -> list[str | None]:
+        """Return targets to try in order. None retries the same request without swapping models."""
+
+        return [None]
+
+    def _is_retryable_error(self, exc: Exception) -> bool:
+        return False
+
+    def _retry_error_label(self, exc: Exception) -> str | int:
+        return getattr(exc, "code", type(exc).__name__)
+
+    def _backoff_delay(self, attempt: int) -> float:
+        base = LLM_RETRY_BASE_DELAY_SECONDS * (2 ** attempt)
+        return base + random.uniform(0, base * 0.25)
+
+    def _call_with_retry(
+        self,
+        call_fn: Callable[[str | None], T],
+        *,
+        operation: str,
+    ) -> T:
+
+        last_exc = None
+
+        for target in self._get_retry_targets():
+            for attempt in range(LLM_MAX_RETRIES):
+                try:
+                    return call_fn(target)
+                except Exception as exc:
+                    if not self._is_retryable_error(exc):
+                        logger.exception("%s failed.", operation)
+                        raise
+
+                    last_exc = exc
+                    logger.warning(
+                        "%s target=%s attempt %s/%s failed with %s. Retrying...",
+                        operation,
+                        target or "default",
+                        attempt + 1,
+                        LLM_MAX_RETRIES,
+                        self._retry_error_label(exc),
+                    )
+
+                    if attempt < LLM_MAX_RETRIES - 1:
+                        time.sleep(self._backoff_delay(attempt))
+
+            logger.warning(
+                "%s target=%s exhausted retries. Trying next target...",
+                operation,
+                target or "default",
+            )
+
+        logger.exception("%s failed after all retries and fallback targets.", operation)
+        raise last_exc
+
+    def _iter_with_retry(
+        self,
+        iter_fn: Callable[[str | None], Iterable[T]],
+        *,
+        operation: str,
+    ) -> Generator[T, None, None]:
+
+        last_exc = None
+
+        for target in self._get_retry_targets():
+            for attempt in range(LLM_MAX_RETRIES):
+                try:
+                    for item in iter_fn(target):
+                        yield item
+                    return
+                except Exception as exc:
+                    if not self._is_retryable_error(exc):
+                        logger.exception("%s failed.", operation)
+                        raise
+
+                    last_exc = exc
+                    logger.warning(
+                        "%s target=%s attempt %s/%s failed with %s. Retrying...",
+                        operation,
+                        target or "default",
+                        attempt + 1,
+                        LLM_MAX_RETRIES,
+                        self._retry_error_label(exc),
+                    )
+
+                    if attempt < LLM_MAX_RETRIES - 1:
+                        time.sleep(self._backoff_delay(attempt))
+
+            logger.warning(
+                "%s target=%s exhausted retries. Trying next target...",
+                operation,
+                target or "default",
+            )
+
+        logger.exception("%s failed after all retries and fallback targets.", operation)
+        raise last_exc
 
     def _execute_tools(
     self,
