@@ -46,6 +46,7 @@ python sandbox/gemini/00_inspect_sdk.py
 python sandbox/gemini/01_basic_text.py
 python sandbox/gemini/02_streaming.py
 python sandbox/gemini/03_tool_calling.py
+python sandbox/gemini/04_streaming_tool_calling.py
 ```
 
 ## Scripts
@@ -56,6 +57,7 @@ python sandbox/gemini/03_tool_calling.py
 | `01_basic_text.py` | Minimal non-streaming text generation. |
 | `02_streaming.py` | Streams output with `generate_content_stream`, printing text as it arrives. |
 | `03_tool_calling.py` | Manual two-turn function calling: disables SDK automatic function calling, executes a local function, sends the result back, and prints the final model response. |
+| `04_streaming_tool_calling.py` | **Milestone 4 Phase 0.** Runs single-tool and multi-tool streaming scenarios; logs per-chunk `parts`, `function_call`, `finish_reason`, and whether text is delta or cumulative. |
 
 ## Conventions
 

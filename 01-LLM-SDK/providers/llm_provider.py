@@ -88,9 +88,9 @@ class LLMProvider(ABC):
         logger.exception("%s failed after all retries and fallback targets.", operation)
         raise last_exc
 
-    def _iter_with_retry(
+    def _stream_with_retry(
         self,
-        iter_fn: Callable[[str | None], Iterable[T]],
+        stream_fn: Callable[[str | None], Iterable[T]],
         *,
         operation: str,
     ) -> Generator[T, None, None]:
@@ -100,7 +100,7 @@ class LLMProvider(ABC):
         for target in self._get_retry_targets():
             for attempt in range(LLM_MAX_RETRIES):
                 try:
-                    for item in iter_fn(target):
+                    for item in stream_fn(target):
                         yield item
                     return
                 except Exception as exc:

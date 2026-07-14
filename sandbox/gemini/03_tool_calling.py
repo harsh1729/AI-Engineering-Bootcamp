@@ -2,7 +2,7 @@
 
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timezone as tz
 
 from google import genai
 from google.genai import types
@@ -25,10 +25,10 @@ GET_CURRENT_TIME_DECLARATION = {
 }
 
 
-def get_current_time(timezone_label: str) -> dict:
+def get_current_time(timezone: str) -> dict:
     return {
-        "timezone": timezone_label,
-        "utc_time": datetime.now(timezone.utc).isoformat(),
+        "timezone": timezone,
+        "utc_time": datetime.now(tz.utc).isoformat(),
     }
 
 
@@ -78,10 +78,12 @@ def main() -> None:
         types.Content(
             role="user",
             parts=[
-                types.Part.from_function_response(
-                    name=function_call.name,
-                    response=result,
-                    id=function_call.id,
+                types.Part(
+                    function_response=types.FunctionResponse(
+                        name=function_call.name,
+                        response=result,
+                        id=function_call.id,
+                    )
                 )
             ],
         )

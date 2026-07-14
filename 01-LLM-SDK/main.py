@@ -10,12 +10,12 @@ request = LLMRequest(
     messages=[
         LLMMessage(
             role=MessageRole.SYSTEM,
-            content="You are a spritual teacher.",
+            content="You are an assistant",
         ),
         
         LLMMessage(
             role=MessageRole.USER,
-            content="Explain what is atman in 100 words.",
+            content="How is the weather in London? Also tell current time and convert 100 USD to its currency",
         ),
     ],
     temperature=0.2,
@@ -39,7 +39,7 @@ request = LLMRequest(
 #     print("words:", len((response.text or "").split()))
 
 
-#Code for stream message
+# Code for stream message
 for chunk in provider.generate_stream(request):
     if chunk.text is not None:
-        print(chunk.text, end="",flush=True)
+        print(chunk.text, end="", flush=True)
