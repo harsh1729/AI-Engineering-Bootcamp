@@ -22,3 +22,9 @@ __pycache__/
 runtime_logs/
 logs/
 *.log
+
+# Uploaded files
+uploads/
+
+# Sandbox (exploratory scripts, not production code)
+sandbox/
