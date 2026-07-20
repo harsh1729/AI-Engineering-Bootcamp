@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llm_sdk"
+version = "0.1.0"
+description = "Provider-agnostic LLM SDK (OpenAI, Claude, Gemini) with streaming, tool calling, and retries."
+requires-python = ">=3.13"
+dependencies = [
+    "openai==2.44.0",
+    "anthropic==0.116.0",
+    "google-genai==2.11.0",
+    "pydantic==2.13.4",
+    "python-dotenv==1.2.2",
+    "requests==2.34.2",
+]
+
+[tool.setuptools.packages.find]
+include = ["llm_sdk*"]

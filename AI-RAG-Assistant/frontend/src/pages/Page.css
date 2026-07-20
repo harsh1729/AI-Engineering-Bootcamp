@@ -1,0 +1,29 @@
+.page {
+  padding: 40px 32px;
+  max-width: 720px;
+}
+
+.page-centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 70svh;
+  margin: 0 auto;
+}
+
+.page-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-h);
+  margin: 0 0 12px;
+}
+
+.page-subtitle {
+  font-size: 16px;
+  color: var(--text);
+  opacity: 0.75;
+  max-width: 480px;
+  margin: 0;
+}

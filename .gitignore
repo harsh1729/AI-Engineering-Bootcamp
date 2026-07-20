@@ -7,6 +7,10 @@ __pycache__/
 **/__pycache__/
 *.pyc
 
+# Python packaging build artifacts
+*.egg-info/
+**/*.egg-info/
+
 # Environment variables
 .env
 **/.env
@@ -28,3 +32,9 @@ uploads/
 
 # Sandbox (exploratory scripts, not production code)
 sandbox/
+
+# Node / frontend build artifacts
+node_modules/
+**/node_modules/
+dist/
+**/dist/
