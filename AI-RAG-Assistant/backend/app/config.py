@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 # Maximum number of user messages a single guest may send during the demo.
 # Enforced by app.services.usage_tracker.
@@ -32,3 +33,11 @@ ALLOWED_DOCUMENT_EXTENSIONS = {
     ".pptx",
     ".rtf",
 }
+
+# Embedding model used by app.embeddings.openai_embedding_provider.
+# Override via EMBEDDING_MODEL in the environment.
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+
+# OpenAI API key for embedding requests. Validated when OpenAIEmbeddingProvider
+# is instantiated without an injected client.
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
