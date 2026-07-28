@@ -5,6 +5,7 @@ import pytest
 from openai import APIStatusError, RateLimitError
 
 from app.embeddings.embedding_exceptions import EmbeddingProviderError, EmbeddingRateLimitError
+from app.embeddings.embedding_models import EmbeddingBatchResponse, EmbeddingUsage, EmbeddingVector
 from app.embeddings.openai_embedding_provider import OpenAIEmbeddingProvider
 
 MODEL = "text-embedding-3-small"
@@ -59,6 +60,8 @@ class TestOpenAIEmbeddingProviderEmbed:
         assert response.embedding == [0.1, 0.2, 0.3]
         assert response.model == MODEL
         assert response.dimensions == 3
+        assert response.usage.prompt_tokens == 8
+        assert response.usage.total_tokens == 8
 
     def test_embed_returns_first_batch_result(
         self, provider: OpenAIEmbeddingProvider, mock_client: MagicMock
@@ -74,17 +77,22 @@ class TestOpenAIEmbeddingProviderEmbed:
     def test_embed_calls_embed_batch_with_single_item(
         self, provider: OpenAIEmbeddingProvider
     ) -> None:
-        expected = MagicMock()
+        batch = EmbeddingBatchResponse(
+            embeddings=[EmbeddingVector(embedding=[0.1, 0.2], model=MODEL)],
+            usage=EmbeddingUsage(prompt_tokens=3, total_tokens=3),
+        )
 
         with patch.object(
             provider,
             "embed_batch",
-            return_value=[expected],
+            return_value=batch,
         ) as mock_embed_batch:
             response = provider.embed("hello")
 
         mock_embed_batch.assert_called_once_with(["hello"])
-        assert response is expected
+        assert response.embedding == [0.1, 0.2]
+        assert response.model == MODEL
+        assert response.usage == batch.usage
 
 
 class TestOpenAIEmbeddingProviderEmbedBatch:
@@ -95,13 +103,13 @@ class TestOpenAIEmbeddingProviderEmbedBatch:
             embeddings=[[0.1], [0.2], [0.3]]
         )
 
-        responses = provider.embed_batch(["alpha", "beta", "gamma"])
+        batch = provider.embed_batch(["alpha", "beta", "gamma"])
 
         mock_client.embeddings.create.assert_called_once_with(
             input=["alpha", "beta", "gamma"],
             model=MODEL,
         )
-        assert len(responses) == 3
+        assert len(batch.embeddings) == 3
 
     def test_batch_embedding_preserves_input_order(
         self, provider: OpenAIEmbeddingProvider, mock_client: MagicMock
@@ -117,9 +125,9 @@ class TestOpenAIEmbeddingProviderEmbedBatch:
         ]
         mock_client.embeddings.create.return_value = response
 
-        responses = provider.embed_batch(["first", "second", "third"])
+        batch = provider.embed_batch(["first", "second", "third"])
 
-        assert [response.embedding for response in responses] == [[1.0], [2.0], [3.0]]
+        assert [vector.embedding for vector in batch.embeddings] == [[1.0], [2.0], [3.0]]
 
     def test_batch_embedding_maps_response_fields(
         self, provider: OpenAIEmbeddingProvider, mock_client: MagicMock
@@ -131,14 +139,15 @@ class TestOpenAIEmbeddingProviderEmbedBatch:
             total_tokens=15,
         )
 
-        first, second = provider.embed_batch(["one", "two"])
+        batch = provider.embed_batch(["one", "two"])
+        first, second = batch.embeddings
 
         assert first.embedding == [0.5, 0.6]
         assert second.embedding == [0.7, 0.8]
         assert first.model == "text-embedding-3-large"
         assert second.model == "text-embedding-3-large"
 
-    def test_batch_embedding_maps_usage(
+    def test_batch_embedding_maps_usage_once(
         self, provider: OpenAIEmbeddingProvider, mock_client: MagicMock
     ) -> None:
         mock_client.embeddings.create.return_value = _make_openai_response(
@@ -147,19 +156,20 @@ class TestOpenAIEmbeddingProviderEmbedBatch:
             total_tokens=25,
         )
 
-        first, second = provider.embed_batch(["one", "two"])
+        batch = provider.embed_batch(["one", "two"])
 
-        assert first.usage.prompt_tokens == 20
-        assert first.usage.total_tokens == 25
-        assert second.usage.prompt_tokens == 20
-        assert second.usage.total_tokens == 25
+        assert batch.usage.prompt_tokens == 20
+        assert batch.usage.total_tokens == 25
+        assert all(isinstance(vector, EmbeddingVector) for vector in batch.embeddings)
 
-    def test_empty_input_list_returns_empty_list_without_api_call(
+    def test_empty_input_returns_synthetic_zero_usage_without_api_call(
         self, provider: OpenAIEmbeddingProvider, mock_client: MagicMock
     ) -> None:
-        responses = provider.embed_batch([])
+        batch = provider.embed_batch([])
 
-        assert responses == []
+        assert batch.embeddings == []
+        assert batch.usage.prompt_tokens == 0
+        assert batch.usage.total_tokens == 0
         mock_client.embeddings.create.assert_not_called()
 
 
@@ -178,9 +188,9 @@ class TestOpenAIEmbeddingProviderIndexValidation:
         ]
         mock_client.embeddings.create.return_value = response
 
-        responses = provider.embed_batch(["first", "second", "third"])
+        batch = provider.embed_batch(["first", "second", "third"])
 
-        assert [item.embedding for item in responses] == [[1.0], [2.0], [3.0]]
+        assert [vector.embedding for vector in batch.embeddings] == [[1.0], [2.0], [3.0]]
 
     def test_duplicate_indices_raise_embedding_provider_error(
         self, provider: OpenAIEmbeddingProvider, mock_client: MagicMock

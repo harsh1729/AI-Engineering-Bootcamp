@@ -6,7 +6,6 @@ Callers should depend on these models, not vendor-specific types.
 
 from app.embeddings.base_embedding_provider import BaseEmbeddingProvider
 from app.embeddings.embedding_models import (
-    EmbeddingRequest,
     EmbeddingResponse,
     EmbeddingUsage,
 )
@@ -14,7 +13,6 @@ from app.embeddings.openai_embedding_provider import OpenAIEmbeddingProvider
 
 __all__ = [
     "BaseEmbeddingProvider",
-    "EmbeddingRequest",
     "EmbeddingResponse",
     "EmbeddingUsage",
     "OpenAIEmbeddingProvider",

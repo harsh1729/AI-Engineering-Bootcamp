@@ -33,12 +33,13 @@ Later phases may reshape earlier ones as we learn more. The roadmap is expected 
 
 ## Architecture Principles
 
-1. **`LLM-SDK` is the only path to LLM providers.** This project must never import or call the OpenAI, Anthropic, or Google GenAI SDKs directly. All LLM interactions (generation, streaming, tool calling) go through `LLM-SDK`'s provider abstraction.
-2. **Providers own orchestration** (inherited convention from `LLM-SDK`): request lifecycle, retries, streaming, and tool-calling flow are the SDK's responsibility, not this project's.
-3. **Separation of concerns.** API layer, business logic, retrieval, and LLM interaction stay in distinct modules. No layer reaches past its neighbor.
-4. **Incremental structure.** Folders and modules are created when a phase actually needs them — not in anticipation of future phases.
-5. **Explicit boundaries over cleverness.** Prefer clear, direct code over abstractions that don't yet have two or more real use cases.
-6. **Config over hardcoding.** Environment-specific values (paths, model names, limits) belong in configuration, not scattered in code.
+1. **`LLM-SDK` is the only path to LLM generation providers.** Chat generation, streaming, and tool calling must go through `LLM-SDK`'s provider abstraction. This project must not import or call the OpenAI, Anthropic, or Google GenAI SDKs directly for LLM generation.
+2. **Embedding providers may use vendor SDKs behind `BaseEmbeddingProvider`.** Embedding is a separate pipeline stage from LLM generation. Implementations such as `OpenAIEmbeddingProvider` may call their vendor SDK internally, but must return provider-agnostic domain models and must not leak SDK types to the rest of the application.
+3. **Providers own orchestration** (inherited convention from `LLM-SDK`): request lifecycle, retries, streaming, and tool-calling flow are the SDK's responsibility for LLM generation, not this project's.
+4. **Separation of concerns.** API layer, business logic, retrieval, and LLM interaction stay in distinct modules. No layer reaches past its neighbor.
+5. **Incremental structure.** Folders and modules are created when a phase actually needs them — not in anticipation of future phases.
+6. **Explicit boundaries over cleverness.** Prefer clear, direct code over abstractions that don't yet have two or more real use cases.
+7. **Config over hardcoding.** Environment-specific values (paths, model names, limits) belong in configuration, not scattered in code.
 
 ---
 
@@ -67,7 +68,8 @@ Later phases may reshape earlier ones as we learn more. The roadmap is expected 
 
 ## Rules for AI Coding Assistants (Cursor / Claude Code)
 
-- **Never call OpenAI, Anthropic, or Google GenAI SDKs directly.** All LLM interactions must go through `LLM-SDK`'s `ProviderFactory` / provider abstraction.
+- **Never call OpenAI, Anthropic, or Google GenAI SDKs directly for LLM generation.** Chat generation, streaming, and tool calling must go through `LLM-SDK`'s `ProviderFactory` / provider abstraction.
+- **Embedding providers are the exception.** Vendor SDK usage is allowed inside `BaseEmbeddingProvider` implementations, as long as SDK types stay confined to that layer and callers receive domain models only.
 - **Do not create folders, files, or scaffolding for phases that haven't started.** Build exactly what the current step requires.
 - **Do not add placeholder business logic, TODOs-as-code, or stub endpoints** "for later." Empty phases stay unbuilt, not half-built.
 - **Modify only the files necessary for the requested task.** Do not refactor unrelated working code.
@@ -80,5 +82,6 @@ Later phases may reshape earlier ones as we learn more. The roadmap is expected 
 
 ## Notes
 
-- **All LLM interactions must go through `LLM-SDK`.** This project has no direct dependency on any LLM vendor SDK — only on the local `LLM-SDK` package.
+- **LLM generation must go through `LLM-SDK`.** This project has no direct dependency on any LLM vendor SDK for chat generation — only on the local `LLM-SDK` package.
+- **Embedding providers may use vendor SDKs behind `BaseEmbeddingProvider`.** That is separate from the LLM generation path and must remain isolated from chat/retrieval orchestration.
 - **Folders are introduced only when they are actually needed.** The scaffold created in the foundation phase is intentionally minimal; structure grows with the project, not ahead of it.

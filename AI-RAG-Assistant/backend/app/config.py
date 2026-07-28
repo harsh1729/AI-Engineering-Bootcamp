@@ -1,6 +1,14 @@
 from pathlib import Path
 import os
 
+from dotenv import load_dotenv
+
+# Resolved relative to this file (not the process CWD) so uploads always land
+# in the same place regardless of where uvicorn is launched from.
+BACKEND_ROOT = Path(__file__).resolve().parent.parent
+
+load_dotenv(BACKEND_ROOT / ".env")
+
 # Maximum number of user messages a single guest may send during the demo.
 # Enforced by app.services.usage_tracker.
 MAX_DEMO_INTERACTIONS = 20
@@ -10,9 +18,6 @@ MAX_DEMO_INTERACTIONS = 20
 MAX_DOCUMENT_SIZE_MB = 2
 MAX_DOCUMENT_SIZE_BYTES = MAX_DOCUMENT_SIZE_MB * 1024 * 1024
 
-# Resolved relative to this file (not the process CWD) so uploads always land
-# in the same place regardless of where uvicorn is launched from.
-BACKEND_ROOT = Path(__file__).resolve().parent.parent
 UPLOAD_DIR = BACKEND_ROOT / "uploads"
 
 # uploads/ is a root with purpose-specific subfolders:

@@ -1,3 +1,5 @@
+from typing import cast
+
 from openai import (
     APIConnectionError,
     APIStatusError,
@@ -9,7 +11,12 @@ from openai import (
 from app.config import EMBEDDING_MODEL, OPENAI_API_KEY
 from app.embeddings.base_embedding_provider import BaseEmbeddingProvider
 from app.embeddings.embedding_exceptions import EmbeddingProviderError, EmbeddingRateLimitError
-from app.embeddings.embedding_models import EmbeddingResponse, EmbeddingUsage
+from app.embeddings.embedding_models import (
+    EmbeddingBatchResponse,
+    EmbeddingResponse,
+    EmbeddingUsage,
+    EmbeddingVector,
+)
 
 
 class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
@@ -30,11 +37,21 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
         self._client = client
 
     def embed(self, text: str) -> EmbeddingResponse:
-        return self.embed_batch([text])[0]
+        batch = self.embed_batch([text])
+        vector = batch.embeddings[0]
+        return EmbeddingResponse(
+            embedding=vector.embedding,
+            model=vector.model,
+            usage=batch.usage,
+        )
 
-    def embed_batch(self, texts: list[str]) -> list[EmbeddingResponse]:
+    def embed_batch(self, texts: list[str]) -> EmbeddingBatchResponse:
         if not texts:
-            return []
+            # Synthetic zero usage: no provider request was made.
+            return EmbeddingBatchResponse(
+                embeddings=[],
+                usage=EmbeddingUsage(prompt_tokens=0, total_tokens=0),
+            )
 
         try:
             response = self._client.embeddings.create(
@@ -48,12 +65,12 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
 
         return self._map_response(response, expected_count=len(texts))
 
-    def _map_response(self, response, expected_count: int) -> list[EmbeddingResponse]:
+    def _map_response(self, response, expected_count: int) -> EmbeddingBatchResponse:
         usage = EmbeddingUsage(
             prompt_tokens=response.usage.prompt_tokens,
             total_tokens=response.usage.total_tokens,
         )
-        results: list[EmbeddingResponse | None] = [None] * expected_count
+        results: list[EmbeddingVector | None] = [None] * expected_count
 
         for item in response.data:
             index = item.index
@@ -66,7 +83,7 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
                 raise EmbeddingProviderError(
                     f"Duplicate embedding response index {index}"
                 )
-            results[index] = self._map_item(item, response, usage)
+            results[index] = self._map_item(item, response)
 
         missing_indices = [index for index, result in enumerate(results) if result is None]
         if missing_indices:
@@ -74,16 +91,12 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
                 f"Missing embedding response indices: {missing_indices}"
             )
 
-        return results
+        embeddings = cast(list[EmbeddingVector], results)
 
-    def _map_item(
-        self,
-        item,
-        response,
-        usage: EmbeddingUsage,
-    ) -> EmbeddingResponse:
-        return EmbeddingResponse(
+        return EmbeddingBatchResponse(embeddings=embeddings, usage=usage)
+
+    def _map_item(self, item, response) -> EmbeddingVector:
+        return EmbeddingVector(
             embedding=item.embedding,
             model=response.model,
-            usage=usage,
         )

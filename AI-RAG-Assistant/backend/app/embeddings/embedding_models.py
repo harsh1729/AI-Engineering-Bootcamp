@@ -1,32 +1,48 @@
 from pydantic import BaseModel, computed_field
 
 
-class EmbeddingRequest(BaseModel):
-    """Input for a single text embedding operation.
-
-    Produced by upstream pipeline stages (e.g. chunk text) and consumed by
-    an embedding provider without carrying document or chunk identifiers.
-    """
-
-    text: str
-
-
 class EmbeddingUsage(BaseModel):
-    """Token accounting returned alongside an embedding result.
+    """Token accounting for an embedding request.
 
-    Mirrors the shape of provider usage metadata so services can log cost
-    and enforce limits without binding to a specific vendor SDK.
+    For batch calls this reflects the entire request, not an individual vector.
     """
 
     prompt_tokens: int
     total_tokens: int
 
 
-class EmbeddingResponse(BaseModel):
-    """Vector representation of embedded text plus model metadata.
+class EmbeddingVector(BaseModel):
+    """One embedding vector plus model metadata.
 
-    Returned by embedding providers and consumed by vector storage and
-    retrieval stages without needing to know which API produced the vector.
+    Per-vector results intentionally omit usage; batch-level usage lives on
+    EmbeddingBatchResponse.
+    """
+
+    embedding: list[float]
+    model: str
+
+    @computed_field
+    @property
+    def dimensions(self) -> int:
+        """Number of dimensions in the embedding vector."""
+        return len(self.embedding)
+
+
+class EmbeddingBatchResponse(BaseModel):
+    """Result of embedding multiple texts in one provider request.
+
+    `usage` is request-level token accounting shared across all vectors in
+    `embeddings`.
+    """
+
+    embeddings: list[EmbeddingVector]
+    usage: EmbeddingUsage
+
+
+class EmbeddingResponse(BaseModel):
+    """Result of embedding a single text input.
+
+    `usage` reflects the one provider request made for this call.
     """
 
     embedding: list[float]
