@@ -17,3 +17,11 @@ class ParsedDocument(BaseModel):
     document_id: str
     filename: str
     extracted_text: str
+
+
+class DocumentMetadata(BaseModel):
+    """Persistent upload metadata for one stored document."""
+
+    document_id: str
+    original_filename: str
+    stored_filename: str

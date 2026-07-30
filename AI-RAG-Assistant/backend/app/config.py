@@ -25,6 +25,7 @@ UPLOAD_DIR = BACKEND_ROOT / "uploads"
 # - images/ reserved for a future image-upload feature (not wired up yet).
 # - temp/   reserved for future staged/in-progress uploads (not wired up yet).
 DOCUMENTS_DIR = UPLOAD_DIR / "files"
+METADATA_DIR = UPLOAD_DIR / "metadata"
 IMAGES_DIR = UPLOAD_DIR / "images"
 TEMP_DIR = UPLOAD_DIR / "temp"
 
@@ -46,3 +47,12 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
 # OpenAI API key for embedding requests. Validated when OpenAIEmbeddingProvider
 # is instantiated without an injected client.
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+# Persistent Chroma storage for app.vector_store.chroma_vector_store.
+_chroma_persist_dir = os.getenv("CHROMA_PERSIST_DIR")
+CHROMA_PERSIST_DIR = (
+    Path(_chroma_persist_dir)
+    if _chroma_persist_dir
+    else BACKEND_ROOT / "chroma_data"
+)
+CHROMA_COLLECTION_NAME = os.getenv("CHROMA_COLLECTION_NAME", "document_chunks")

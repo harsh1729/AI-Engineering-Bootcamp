@@ -20,3 +20,7 @@ class DocumentTooLargeError(DocumentServiceError):
 
 class DocumentParsingError(DocumentServiceError):
     """Raised when a registered parser fails while reading a document."""
+
+
+class DocumentIngestionError(DocumentServiceError):
+    """Raised when ingestion cannot pair chunks with embedding results."""
