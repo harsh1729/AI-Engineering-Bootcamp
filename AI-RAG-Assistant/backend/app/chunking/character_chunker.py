@@ -2,13 +2,18 @@ import uuid
 
 from app.chunking.base_chunker import BaseChunker
 from app.chunking.chunk_models import DocumentChunk
+from app.config import CHUNK_OVERLAP, CHUNK_SIZE
 from app.models.document import ParsedDocument
 
 
 class CharacterChunker(BaseChunker):
     """Sliding-window chunker that splits text by fixed character counts."""
 
-    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200) -> None:
+    def __init__(
+        self,
+        chunk_size: int = CHUNK_SIZE,
+        chunk_overlap: int = CHUNK_OVERLAP,
+    ) -> None:
         if chunk_size <= 0:
             raise ValueError("chunk_size must be greater than 0")
         if chunk_overlap < 0:

@@ -59,3 +59,7 @@ CHROMA_COLLECTION_NAME = os.getenv("CHROMA_COLLECTION_NAME", "document_chunks")
 
 # Temporary flag for structured RAG pipeline logging. Set RAG_DEBUG=true in .env.
 RAG_DEBUG = os.getenv("RAG_DEBUG", "false").lower() in ("true", "1", "yes")
+
+# Default chunk size for document splitting. Table blocks use 2x this limit.
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1500"))
+CHUNK_OVERLAP = CHUNK_SIZE // 5

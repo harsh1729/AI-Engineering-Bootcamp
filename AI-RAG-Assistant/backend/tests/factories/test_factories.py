@@ -2,6 +2,7 @@ import pytest
 
 from app.chunking.character_chunker import CharacterChunker
 from app.chunking.recursive_chunker import RecursiveChunker
+from app.config import CHUNK_SIZE
 from app.embeddings.openai_embedding_provider import OpenAIEmbeddingProvider
 from app.factories.chunking_factory import ChunkingFactory
 from app.factories.embedding_factory import EmbeddingFactory
@@ -15,11 +16,13 @@ class TestChunkingFactory:
         chunker = ChunkingFactory.create(ChunkingStrategy.RECURSIVE)
 
         assert isinstance(chunker, RecursiveChunker)
+        assert chunker._chunk_size == CHUNK_SIZE
 
     def test_create_character_chunker(self) -> None:
         chunker = ChunkingFactory.create(ChunkingStrategy.CHARACTER)
 
         assert isinstance(chunker, CharacterChunker)
+        assert chunker._chunk_size == CHUNK_SIZE
 
 
 class TestEmbeddingFactory:
