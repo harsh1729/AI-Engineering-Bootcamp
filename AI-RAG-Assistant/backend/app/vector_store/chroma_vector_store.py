@@ -48,12 +48,21 @@ class ChromaVectorStore(BaseVectorStore):
             ],
         )
 
-    def query(self, query_embedding: list[float], limit: int) -> list[VectorQueryResult]:
-        response = self._collection.query(
-            query_embeddings=[query_embedding],
-            n_results=limit,
-            include=["documents", "metadatas", "distances"],
-        )
+    def query(
+        self,
+        query_embedding: list[float],
+        limit: int,
+        document_ids: list[str] | None = None,
+    ) -> list[VectorQueryResult]:
+        query_kwargs: dict = {
+            "query_embeddings": [query_embedding],
+            "n_results": limit,
+            "include": ["documents", "metadatas", "distances"],
+        }
+        if document_ids:
+            query_kwargs["where"] = {"document_id": {"$in": document_ids}}
+
+        response = self._collection.query(**query_kwargs)
         return self._map_query_response(response)
 
     def delete_document(self, document_id: str) -> None:

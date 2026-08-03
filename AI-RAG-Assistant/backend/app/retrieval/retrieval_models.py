@@ -6,7 +6,7 @@ class RetrievalRequest(BaseModel):
 
     query: str
     top_k: int = Field(default=5, gt=0)
-    # TODO: document_ids: list[str] | None = None — restrict search to specific documents
+    document_ids: list[str] | None = None
     # TODO: metadata_filters: dict[str, str] | None = None — filter by chunk metadata
     # TODO: minimum_score: float | None = None — drop results below this score threshold
     # TODO: namespace: str | None = None — scope search to a logical partition

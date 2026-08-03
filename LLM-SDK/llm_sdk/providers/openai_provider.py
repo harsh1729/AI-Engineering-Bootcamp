@@ -101,11 +101,14 @@ class OpenAIProvider(LLMProvider):
     ) -> Generator[LLMResponseChunk, None, None]:
 
         MAX_TOOL_CALL_DEPTH = 10
+        tools_enabled = bool(request.tools)
+        tools_executed = False
 
         for _ in range(MAX_TOOL_CALL_DEPTH):
 
             stream_response_id = None
             tool_calls: list[LLMToolCall] = []
+            buffered_text: list[str] = []
 
             for event in stream:
 
@@ -118,14 +121,18 @@ class OpenAIProvider(LLMProvider):
                 if not chunk:
                     continue
 
-                if chunk.text:
-                    yield chunk
-
                 if chunk.tool_call:
                     tool_calls.append(chunk.tool_call)
                     continue
 
+                if chunk.text:
+                    if tools_enabled and not tools_executed:
+                        buffered_text.append(chunk.text)
+                    else:
+                        yield chunk
+
             if len(tool_calls) > 0:
+                tools_executed = True
                 tool_results = self._execute_tools(tool_calls)
 
                 payload = self.request_serializer.serialize_tool_results(
@@ -134,18 +141,18 @@ class OpenAIProvider(LLMProvider):
                     tool_results=tool_results,
                 )
 
-                
-
                 stream = self._call_with_retry(
                     lambda _: self.client.responses.create(**payload, stream=True),
                     request=request,
                     operation="OpenAI streaming follow-up request",
                 )
 
-
                 continue
 
-            # No tool calls OR chunk.text means we're done 
+            if buffered_text:
+                for text in buffered_text:
+                    yield LLMResponseChunk(text=text)
+
             return
 
         raise RuntimeError(

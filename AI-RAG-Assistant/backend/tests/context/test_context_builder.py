@@ -57,11 +57,7 @@ class TestContextBuilderSingleChunk:
 
         response = builder.build(ContextRequest(chunks=[chunk]))
 
-        assert response.context == (
-            "Source [1]\n"
-            "Filename: refund_policy.pdf\n\n"
-            "Refunds are available within 30 days."
-        )
+        assert response.context == "[1]\nRefunds are available within 30 days."
         assert response.sources == [
             ContextSource(
                 source_number=1,
@@ -109,13 +105,9 @@ class TestContextBuilderMultipleChunks:
         response = builder.build(ContextRequest(chunks=chunks))
 
         assert response.context == (
-            "Source [1]\n"
-            "Filename: refund_policy.pdf\n\n"
-            "Refunds are available within 30 days."
+            "[1]\nRefunds are available within 30 days."
             f"\n\n{_SOURCE_SEPARATOR}\n\n"
-            "Source [2]\n"
-            "Filename: pricing.pdf\n\n"
-            "Annual plans start at $99."
+            "[2]\nAnnual plans start at $99."
         )
         assert response.sources == [
             ContextSource(
@@ -193,3 +185,73 @@ class TestContextBuilderMultipleChunks:
         response = builder.build(ContextRequest(chunks=chunks))
 
         assert response.estimated_tokens == math.ceil(len(response.context) / 4)
+
+
+class TestContextBuilderPrompt:
+    def test_build_prompt_includes_system_instruction_and_question(
+        self,
+        builder: ContextBuilder,
+    ) -> None:
+        chunk = _chunk(
+            chunk_id="chunk-1",
+            text="Refunds are available within 30 days.",
+            source_filename="refund_policy.pdf",
+        )
+
+        prompt = builder.build_prompt(
+            ContextRequest(chunks=[chunk]),
+            "What is the refund policy?",
+        )
+
+        assert "Answer ONLY using the supplied context." in prompt.system_content
+        assert "Do not hallucinate." in prompt.system_content
+        assert "[1]\nRefunds are available within 30 days." in prompt.system_content
+        assert prompt.user_content == "Question:\n\nWhat is the refund policy?"
+        assert prompt.sources[0].filename == "refund_policy.pdf"
+
+    def test_build_prompt_handles_empty_retrieval(
+        self,
+        builder: ContextBuilder,
+    ) -> None:
+        prompt = builder.build_prompt(ContextRequest(chunks=[]), "Any policies?")
+
+        assert "No relevant document context was retrieved." in prompt.system_content
+        assert prompt.sources == []
+
+
+class TestUniqueDocumentSources:
+    def test_deduplicates_sources_by_document_id(self) -> None:
+        from app.context.context_builder import unique_document_sources
+
+        sources = unique_document_sources(
+            [
+                ContextSource(
+                    source_number=1,
+                    document_id=DOCUMENT_ID_A,
+                    filename="roadmap.rtf",
+                ),
+                ContextSource(
+                    source_number=2,
+                    document_id=DOCUMENT_ID_A,
+                    filename="roadmap.rtf",
+                ),
+                ContextSource(
+                    source_number=3,
+                    document_id=DOCUMENT_ID_B,
+                    filename="pricing.pdf",
+                ),
+            ]
+        )
+
+        assert sources == [
+            ContextSource(
+                source_number=1,
+                document_id=DOCUMENT_ID_A,
+                filename="roadmap.rtf",
+            ),
+            ContextSource(
+                source_number=2,
+                document_id=DOCUMENT_ID_B,
+                filename="pricing.pdf",
+            ),
+        ]

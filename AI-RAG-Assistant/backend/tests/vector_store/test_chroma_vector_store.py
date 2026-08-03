@@ -177,6 +177,25 @@ class TestChromaVectorStoreQuery:
 
         assert store.query([0.1, 0.2], limit=5) == []
 
+    def test_query_filters_by_document_ids(
+        self, store: ChromaVectorStore, mock_collection: MagicMock
+    ) -> None:
+        mock_collection.query.return_value = {
+            "ids": [[]],
+            "documents": [[]],
+            "metadatas": [[]],
+            "distances": [[]],
+        }
+
+        store.query([0.1, 0.2, 0.3], limit=5, document_ids=["doc-a", "doc-b"])
+
+        mock_collection.query.assert_called_once_with(
+            query_embeddings=[[0.1, 0.2, 0.3]],
+            n_results=5,
+            include=["documents", "metadatas", "distances"],
+            where={"document_id": {"$in": ["doc-a", "doc-b"]}},
+        )
+
 
 class TestChromaVectorStoreDelete:
     def test_delete_document_filters_by_document_id(
@@ -203,7 +222,7 @@ class TestBaseVectorStoreDependencyInjection:
 
         results = provider.query([0.1, 0.2, 0.3], limit=1)
 
-        provider.query.assert_called_once_with([0.1, 0.2, 0.3], 1)
+        provider.query.assert_called_once_with([0.1, 0.2, 0.3], limit=1)
         assert results is expected
 
     def test_concrete_store_is_substitutable_as_base_vector_store(

@@ -85,7 +85,7 @@ class TestSimilarityRetriever:
         response = similarity_retriever.retrieve(request)
 
         embedding_service.embed.assert_called_once_with("What is RAG?")
-        vector_store.query.assert_called_once_with([0.1, 0.2, 0.3], 2)
+        vector_store.query.assert_called_once_with([0.1, 0.2, 0.3], 2, document_ids=None)
         assert response == RetrievalResponse(
             chunks=[
                 RetrievedChunk(
@@ -134,7 +134,7 @@ class TestSimilarityRetriever:
 
         similarity_retriever.retrieve(RetrievalRequest(query="search text"))
 
-        vector_store.query.assert_called_once_with([0.1, 0.2, 0.3], 5)
+        vector_store.query.assert_called_once_with([0.1, 0.2, 0.3], 5, document_ids=None)
 
     def test_retrieve_returns_empty_response_when_vector_store_has_no_matches(
         self,
@@ -150,6 +150,29 @@ class TestSimilarityRetriever:
         )
 
         assert response == RetrievalResponse(chunks=[])
+
+    def test_retrieve_passes_document_ids_to_vector_store(
+        self,
+        similarity_retriever: SimilarityRetriever,
+        embedding_service: MagicMock,
+        vector_store: MagicMock,
+    ) -> None:
+        embedding_service.embed.return_value = _embedding_response()
+        vector_store.query.return_value = []
+
+        similarity_retriever.retrieve(
+            RetrievalRequest(
+                query="refund policy",
+                top_k=3,
+                document_ids=["doc-a", "doc-b"],
+            )
+        )
+
+        vector_store.query.assert_called_once_with(
+            [0.1, 0.2, 0.3],
+            3,
+            document_ids=["doc-a", "doc-b"],
+        )
 
 
 class TestRetrievalService:

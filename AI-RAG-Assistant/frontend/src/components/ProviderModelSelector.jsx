@@ -3,6 +3,7 @@ import { PROVIDERS, getProvider } from "../constants/providers";
 export default function ProviderModelSelector({
   providerValue,
   modelValue,
+  disabled = false,
   onProviderChange,
   onModelChange,
 }) {
@@ -15,6 +16,7 @@ export default function ProviderModelSelector({
         <select
           id="provider-select"
           value={providerValue}
+          disabled={disabled}
           onChange={(event) => onProviderChange(event.target.value)}
         >
           {PROVIDERS.map((provider) => (
@@ -30,6 +32,7 @@ export default function ProviderModelSelector({
         <select
           id="model-select"
           value={modelValue}
+          disabled={disabled}
           onChange={(event) => onModelChange(event.target.value)}
         >
           {models.map((model) => (

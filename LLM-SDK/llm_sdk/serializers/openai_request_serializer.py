@@ -1,9 +1,9 @@
 from llm_sdk.models import LLMMessage,LLMRequest
 from llm_sdk.models.tools import LLMTool, LLMToolParam,LLMToolExecutionResult
 from llm_sdk.serializers import BaseRequestSerializer
+from llm_sdk.serializers.tool_output import format_tool_output_for_llm
 from llm_sdk.config import OPENAI_MODEL
 from llm_sdk.enums import MessageRole
-import json
 
 
 class OpenAIRequestSerializer(BaseRequestSerializer):
@@ -73,13 +73,7 @@ class OpenAIRequestSerializer(BaseRequestSerializer):
                 {
                     "type": "function_call_output",
                     "call_id": tool_result.tool_call.call_id,
-                    "output": json.dumps(
-                        {
-                            "success": tool_result.error is None,
-                            "result": tool_result.result,
-                            "error": tool_result.error,
-                        }
-                    ),
+                    "output": format_tool_output_for_llm(tool_result),
                 }
                 for tool_result in tool_results
             ],

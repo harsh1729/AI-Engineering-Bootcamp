@@ -5,5 +5,5 @@ export const MAX_ATTACHMENTS = 3;
 
 // Must stay in sync with backend app.config.MAX_DOCUMENT_SIZE_MB.
 // Backend remains the source of truth; this is a UX guard only.
-export const MAX_DOCUMENT_SIZE_MB = 2;
+export const MAX_DOCUMENT_SIZE_MB = 15;
 export const MAX_DOCUMENT_SIZE_BYTES = MAX_DOCUMENT_SIZE_MB * 1024 * 1024;

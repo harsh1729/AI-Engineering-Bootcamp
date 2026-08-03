@@ -8,7 +8,7 @@ import spinnerIcon from "../assets/spinner.svg";
 const ACCEPTED_FILE_TYPES = ".pdf,.txt,.docx,.xlsx,.pptx,.rtf";
 const ERROR_MESSAGE_DURATION_MS = 6000;
 
-function DocumentUpload({ attachmentCount, onUploaded }) {
+function DocumentUpload({ attachmentCount, onUploaded, ragOptions }) {
   const containerRef = useRef(null);
   const fileInputRef = useRef(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -72,8 +72,13 @@ function DocumentUpload({ attachmentCount, onUploaded }) {
     setErrorMessage("");
 
     try {
-      const result = await uploadDocument(file);
-      onUploaded({ documentId: result.document_id, filename: result.filename });
+      const result = await uploadDocument(file, ragOptions);
+      onUploaded({
+        documentId: result.document_id,
+        filename: result.filename,
+        indexedChunkCount: result.indexed_chunk_count,
+        ragOptions: ragOptions ? { ...ragOptions } : null,
+      });
       setStatus("idle");
     } catch (error) {
       setStatus("error");

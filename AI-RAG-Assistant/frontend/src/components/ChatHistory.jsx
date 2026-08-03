@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import MessageBubble from "./MessageBubble";
 
-export default function ChatHistory({ messages, isLoading }) {
+export default function ChatHistory({ messages, isLoading, loadingLabel = "Thinking..." }) {
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -21,7 +21,9 @@ export default function ChatHistory({ messages, isLoading }) {
             role={message.role}
             content={message.content}
             warning={message.warning}
+            sources={message.sources}
             pending={isLoading && index === messages.length - 1 && message.role === "assistant"}
+            pendingLabel={loadingLabel}
           />
         ))}
 

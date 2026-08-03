@@ -49,6 +49,51 @@
   font-size: 14px;
 }
 
+.selector-field select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Advanced RAG options */
+
+.rag-options-panel {
+  flex-shrink: 0;
+  margin: -8px 0 16px;
+}
+
+.rag-options-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.rag-options-toggle input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.rag-options-toggle input:disabled {
+  cursor: not-allowed;
+}
+
+.rag-options-row {
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
+@media (max-width: 720px) {
+  .rag-options-row {
+    flex-direction: column;
+  }
+}
+
 /* Chat history */
 
 .chat-history {
@@ -135,6 +180,27 @@
   opacity: 0.9;
 }
 
+.message-sources {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.message-sources-label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.message-sources ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.message-sources li {
+  margin-bottom: 2px;
+}
+
 /* Message input */
 
 .message-input {
@@ -169,7 +235,7 @@
   font: inherit;
 }
 
-.message-input-row button {
+.message-input-send {
   padding: 10px 18px;
   border-radius: 8px;
   border: none;
@@ -179,10 +245,12 @@
   font-size: 14px;
   cursor: pointer;
   white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.message-input-row button:disabled {
-  opacity: 0.6;
+.message-input-send:disabled {
+  background: color-mix(in srgb, var(--accent) 32%, var(--surface));
+  color: #f0f0f2;
   cursor: not-allowed;
 }
 
@@ -289,28 +357,58 @@
 
 .attachment-chip {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 6px 6px 10px;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg);
+  box-sizing: border-box;
 }
 
 .attachment-chip-icon {
   flex-shrink: 0;
   font-size: 16px;
-  line-height: 1;
+  line-height: 1.4;
+  margin-top: 1px;
+}
+
+.attachment-chip-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.attachment-chip-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .attachment-chip-name {
   flex: 1;
   min-width: 0;
   font-size: 13px;
+  font-weight: 600;
   color: var(--text-h);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.attachment-chip-success {
+  margin: 6px 0 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-h);
+  line-height: 1.4;
+}
+
+.attachment-chip-prompt {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
 }
 
 .message-input-main .attachment-chip-remove {

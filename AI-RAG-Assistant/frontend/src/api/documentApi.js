@@ -11,13 +11,18 @@ async function readErrorMessage(response) {
  * header manually - the browser generates the multipart boundary itself when
  * given a FormData body.
  */
-export async function uploadDocument(file) {
+export async function uploadDocument(file, ragOptions = null) {
   const formData = new FormData();
   formData.append("file", file);
+  if (ragOptions) {
+    formData.append("rag_options", JSON.stringify(ragOptions));
+  }
 
   const controller = new AbortController();
   // Prevent the + button from spinning forever if the backend is down/hung.
-  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+  // Ingestion (parse, chunk, embed) runs during upload and can take longer than a
+  // plain file transfer, so allow a generous timeout.
+  const timeoutId = setTimeout(() => controller.abort(), 120_000);
 
   let response;
 

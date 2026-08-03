@@ -1,8 +1,12 @@
+import logging
+
 from app.embeddings.embedding_service import EmbeddingService
 from app.retrieval.base_retriever import BaseRetriever
 from app.retrieval.retrieval_models import RetrievedChunk, RetrievalRequest, RetrievalResponse
 from app.vector_store.base_vector_store import BaseVectorStore
 from app.vector_store.vector_store_models import VectorQueryResult
+
+logger = logging.getLogger(__name__)
 
 
 class SimilarityRetriever(BaseRetriever):
@@ -17,9 +21,27 @@ class SimilarityRetriever(BaseRetriever):
         self._vector_store = vector_store
 
     def retrieve(self, request: RetrievalRequest) -> RetrievalResponse:
+        logger.info(
+            "Retrieving top %d chunks for query=%r document_ids=%s",
+            request.top_k,
+            request.query,
+            request.document_ids,
+        )
         query_embedding = self._embedding_service.embed(request.query)
-        results = self._vector_store.query(query_embedding.embedding, request.top_k)
-        return RetrievalResponse(chunks=[self._map_result(result) for result in results])
+        results = self._vector_store.query(
+            query_embedding.embedding,
+            request.top_k,
+            document_ids=request.document_ids,
+        )
+        chunks = [self._map_result(result) for result in results]
+        for chunk in chunks:
+            logger.info(
+                "Retrieved document=%s chunk=%d score=%s",
+                chunk.document_id,
+                chunk.chunk_index,
+                chunk.score,
+            )
+        return RetrievalResponse(chunks=chunks)
 
     def _map_result(self, result: VectorQueryResult) -> RetrievedChunk:
         return RetrievedChunk(

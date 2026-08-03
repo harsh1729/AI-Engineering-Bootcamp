@@ -4,6 +4,7 @@ from llm_sdk.config import GEMINI_MODEL, GEMINI_THINKING_LEVEL
 from llm_sdk.enums import MessageRole
 from llm_sdk.models import LLMMessage, LLMRequest
 from llm_sdk.models.tools import LLMTool, LLMToolExecutionResult, LLMToolParam
+from llm_sdk.serializers.tool_output import format_tool_output_for_llm
 from llm_sdk.serializers import BaseRequestSerializer
 
 
@@ -38,11 +39,7 @@ class GeminiRequestSerializer(BaseRequestSerializer):
                     types.Part(
                         function_response=types.FunctionResponse(
                             name=tool_result.tool_call.name,
-                            response={
-                                "success": tool_result.error is None,
-                                "result": tool_result.result,
-                                "error": tool_result.error,
-                            },
+                            response={"output": format_tool_output_for_llm(tool_result)},
                             id=tool_result.tool_call.call_id,
                         )
                     )

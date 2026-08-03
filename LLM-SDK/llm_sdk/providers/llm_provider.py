@@ -9,11 +9,12 @@ from llm_sdk.logs import get_logger
 from llm_sdk.models import LLMRequest, LLMResponse, LLMResponseChunk
 from llm_sdk.models.tools import LLMToolCall, LLMToolExecutionResult
 from llm_sdk.tool_functions import ToolRegistry
+from llm_sdk.tool_functions.web_search import WEB_SEARCH_UNAVAILABLE_MESSAGE
 
 from concurrent.futures import ThreadPoolExecutor
 
 logger = get_logger(__name__)
-TOOL_TIMEOUT_SECONDS = 10
+TOOL_TIMEOUT_SECONDS = 20
 
 T = TypeVar("T")
 
@@ -154,10 +155,8 @@ class LLMProvider(ABC):
         
 
             try:
+                result = self._execute_tool_with_timeout(tool, tool_call.arguments)
 
-                result = tool(**tool_call.arguments)
-                
-            
                 elapsed = time.perf_counter() - start
 
                 logger.info(
@@ -172,9 +171,8 @@ class LLMProvider(ABC):
                         result=result,
                     )
                 )
-            
-            except Exception as ex:
 
+            except Exception as ex:
                 elapsed = time.perf_counter() - start
 
                 logger.exception(
@@ -185,12 +183,20 @@ class LLMProvider(ABC):
                     ex,
                 )
 
-                tool_results.append(
-                    LLMToolExecutionResult(
-                        tool_call=tool_call,
-                        error=str(ex),
+                if tool_call.name == "web_search":
+                    tool_results.append(
+                        LLMToolExecutionResult(
+                            tool_call=tool_call,
+                            result=WEB_SEARCH_UNAVAILABLE_MESSAGE,
+                        )
                     )
-                )
+                else:
+                    tool_results.append(
+                        LLMToolExecutionResult(
+                            tool_call=tool_call,
+                            error=str(ex),
+                        )
+                    )
 
 
         return tool_results

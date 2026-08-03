@@ -23,3 +23,12 @@ class ContextResponse(BaseModel):
     context: str
     sources: list[ContextSource]
     estimated_tokens: int
+
+
+class ContextPrompt(BaseModel):
+    """LLM-ready prompt content assembled from retrieved chunks."""
+
+    system_content: str
+    user_content: str
+    sources: list[ContextSource]
+    estimated_tokens: int

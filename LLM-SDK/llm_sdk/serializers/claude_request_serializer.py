@@ -1,5 +1,6 @@
 from llm_sdk.models import LLMRequest,LLMMessage
 from llm_sdk.models.tools import LLMTool,LLMToolParam,LLMToolExecutionResult
+from llm_sdk.serializers.tool_output import format_tool_output_for_llm
 from llm_sdk.enums import MessageRole
 
 from llm_sdk.serializers import BaseRequestSerializer
@@ -154,13 +155,7 @@ class ClaudeRequestSerializer(BaseRequestSerializer):
                 {
                     "type": "tool_result",
                     "tool_use_id": tool_result.tool_call.call_id,
-                    "content": json.dumps(
-                        {
-                            "success": tool_result.error is None,
-                            "result": tool_result.result,
-                            "error": tool_result.error,
-                        }
-                    ),
+                    "content": format_tool_output_for_llm(tool_result),
                 }
                 for tool_result in tool_results
             ],

@@ -3,14 +3,15 @@ from collections.abc import Callable
 from .time import get_current_time
 from .weather import get_weather
 from .currency import convert_currency
+from .web_search import web_search
 
 class ToolRegistry:
 
     _tools: dict[str, Callable] = {
         "get_current_time": get_current_time,
         "get_weather": get_weather,
-        "convert_currency":convert_currency,
-        
+        "convert_currency": convert_currency,
+        "web_search": web_search,
     }
 
     @classmethod

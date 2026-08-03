@@ -1,39 +1,21 @@
 import logging
+import re
 from typing import Generator
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
 from llm_sdk.factories import ProviderFactory
-from llm_sdk.models import LLMMessage, LLMRequest
+from llm_sdk.models import LLMRequest
 
+from app.dependencies import get_chat_service
+from app.llm.llm_request_builder import build_chat_llm_request
 from app.models.chat import ChatRequest, ChatResponse
+from app.services.chat_service import ChatService
 from app.services.usage_tracker import UsageLimitExceeded, usage_tracker
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-
-def _truncation_warning(finish_reason: str | None) -> str | None:
-    """Providers report token-limit cutoffs with different vocabularies
-    (OpenAI: "max_output_tokens", Claude: "max_tokens", Gemini: "MAX_TOKENS").
-    Checking for both "max" and "token" (rather than one fixed substring)
-    covers all of them without needing a shared enum across the SDK."""
-    reason = (finish_reason or "").lower()
-    if "max" in reason and "token" in reason:
-        return "The response was cut off because the token limit was reached."
-    return None
-
-
-def _build_llm_request(request: ChatRequest) -> LLMRequest:
-    return LLMRequest(
-        messages=[
-            LLMMessage(role=message.role, content=message.content)
-            for message in request.messages
-        ],
-        provider=request.provider,
-        model=request.model,
-    )
 
 
 def _enforce_usage_limit(guest_id: str) -> None:
@@ -44,9 +26,6 @@ def _enforce_usage_limit(guest_id: str) -> None:
 
 
 def _log_document_ids(request: ChatRequest) -> None:
-    """Logs which documents (if any) the client attached to this request, so
-    the upload -> chat wiring can be verified end-to-end before retrieval is
-    implemented. This is the only thing document_ids is used for right now."""
     if request.document_ids:
         logger.info(
             "Chat request from guest_id=%s attached document_ids=%s",
@@ -56,23 +35,47 @@ def _log_document_ids(request: ChatRequest) -> None:
 
 
 @router.post("/chat")
-def chat(request: ChatRequest) -> ChatResponse:
+def chat(
+    request: ChatRequest,
+    chat_service: ChatService = Depends(get_chat_service),
+) -> ChatResponse:
     _enforce_usage_limit(request.guest_id)
-    _log_document_ids(request)
-
-    llm_request = _build_llm_request(request)
-    provider = ProviderFactory.create(request.provider)
 
     try:
-        llm_response = provider.generate_response(llm_request)
+        return chat_service.chat(request)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
-        logger.exception("LLM provider request failed")
+        logger.exception("Chat request failed")
         raise HTTPException(status_code=502, detail="LLM provider request failed.") from exc
 
-    return ChatResponse(
-        response=llm_response.text or "",
-        warning=_truncation_warning(llm_response.finish_reason),
-    )
+
+def _extract_provider_error_message(exc: Exception) -> str | None:
+    """Pull a user-facing message from provider SDK exceptions when available."""
+    response_json = getattr(exc, "response_json", None)
+    if isinstance(response_json, dict):
+        error = response_json.get("error")
+        if isinstance(error, dict):
+            message = error.get("message")
+            if isinstance(message, str) and message.strip():
+                return message.strip()
+
+    match = re.search(r"'message': '((?:\\'|[^'])*)'", str(exc))
+    if match:
+        return match.group(1).replace("\\'", "'")
+
+    match = re.search(r'"message": "((?:\\"|[^"])*)"', str(exc))
+    if match:
+        return match.group(1).replace('\\"', '"')
+
+    return None
+
+
+def _streaming_error_message(exc: Exception) -> str:
+    provider_message = _extract_provider_error_message(exc)
+    if provider_message:
+        return provider_message
+    return "The assistant could not respond. Please try again."
 
 
 def _stream_text_chunks(provider, llm_request: LLMRequest) -> Generator[str, None, None]:
@@ -84,9 +87,9 @@ def _stream_text_chunks(provider, llm_request: LLMRequest) -> Generator[str, Non
         for chunk in provider.generate_stream(llm_request):
             if chunk.text:
                 yield chunk.text
-    except Exception:
+    except Exception as exc:
         logger.exception("LLM provider streaming request failed")
-        yield "\n[The assistant could not respond. Please try again.]"
+        yield f"\n{_streaming_error_message(exc)}"
 
 
 @router.post("/chat/stream", response_class=StreamingResponse)
@@ -94,7 +97,7 @@ def chat_stream(request: ChatRequest) -> StreamingResponse:
     _enforce_usage_limit(request.guest_id)
     _log_document_ids(request)
 
-    llm_request = _build_llm_request(request)
+    llm_request = build_chat_llm_request(request, include_tools=True)
     provider = ProviderFactory.create(request.provider)
 
     return StreamingResponse(

@@ -1,4 +1,10 @@
-from openai.types.responses import ResponseTextDeltaEvent,ResponseOutputItemDoneEvent,ResponseFunctionToolCall
+from openai.types.responses import (
+    ResponseFunctionCallArgumentsDeltaEvent,
+    ResponseFunctionCallArgumentsDoneEvent,
+    ResponseOutputItemDoneEvent,
+    ResponseFunctionToolCall,
+    ResponseTextDeltaEvent,
+)
 import json
 
 from llm_sdk.models import LLMResponseChunk
@@ -12,6 +18,15 @@ class OpenAIResponseChunkSerializer(BaseResponseChunkSerializer):
         self,
         event,
     ) -> LLMResponseChunk | None:
+        if isinstance(
+            event,
+            (
+                ResponseFunctionCallArgumentsDeltaEvent,
+                ResponseFunctionCallArgumentsDoneEvent,
+            ),
+        ):
+            return None
+
         if isinstance(event, ResponseTextDeltaEvent):
 
             return LLMResponseChunk(

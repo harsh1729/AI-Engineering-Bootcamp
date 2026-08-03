@@ -15,7 +15,7 @@ MAX_DEMO_INTERACTIONS = 20
 
 # Maximum size of a single uploaded document. Enforced by the upload endpoint
 # before the file is written to disk (and mirrored client-side for UX).
-MAX_DOCUMENT_SIZE_MB = 2
+MAX_DOCUMENT_SIZE_MB = 15
 MAX_DOCUMENT_SIZE_BYTES = MAX_DOCUMENT_SIZE_MB * 1024 * 1024
 
 UPLOAD_DIR = BACKEND_ROOT / "uploads"
@@ -56,3 +56,6 @@ CHROMA_PERSIST_DIR = (
     else BACKEND_ROOT / "chroma_data"
 )
 CHROMA_COLLECTION_NAME = os.getenv("CHROMA_COLLECTION_NAME", "document_chunks")
+
+# Temporary flag for structured RAG pipeline logging. Set RAG_DEBUG=true in .env.
+RAG_DEBUG = os.getenv("RAG_DEBUG", "false").lower() in ("true", "1", "yes")

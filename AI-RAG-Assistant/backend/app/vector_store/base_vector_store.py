@@ -11,9 +11,15 @@ class BaseVectorStore(ABC):
         """Insert or update the supplied chunk records."""
 
     @abstractmethod
-    def query(self, query_embedding: list[float], limit: int) -> list[VectorQueryResult]:
+    def query(
+        self,
+        query_embedding: list[float],
+        limit: int,
+        document_ids: list[str] | None = None,
+    ) -> list[VectorQueryResult]:
         """Return the closest stored chunks to `query_embedding`.
 
+        When `document_ids` is provided, search is restricted to those documents.
         Results are ordered by ascending distance (lower is better).
         """
 

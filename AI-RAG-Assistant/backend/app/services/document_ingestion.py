@@ -1,3 +1,5 @@
+import logging
+
 from pydantic import BaseModel
 
 from app.chunking.chunking_service import ChunkingService
@@ -8,6 +10,8 @@ from app.services.document_exceptions import DocumentIngestionError
 from app.services.document_parser import DocumentParser
 from app.vector_store.base_vector_store import BaseVectorStore
 from app.vector_store.vector_store_models import VectorStoreRecord
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentIndexingResult(BaseModel):
@@ -37,8 +41,15 @@ class DocumentIngestionService:
 
     def index_document(self, document_id: str) -> DocumentIndexingResult:
         """Parse, chunk, embed, and store one uploaded document."""
+        logger.info("Parsing document document_id=%s", document_id)
         parsed_document = self._document_parser.parse(document_id)
         chunks = self._chunking_service.chunk_document(parsed_document)
+        logger.info(
+            "Generated %d chunks for document_id=%s filename=%s",
+            len(chunks),
+            parsed_document.document_id,
+            parsed_document.filename,
+        )
 
         if not chunks:
             return DocumentIndexingResult(
@@ -49,6 +60,7 @@ class DocumentIngestionService:
                 usage=None,
             )
 
+        logger.info("Generating embeddings for document_id=%s", document_id)
         batch = self._embedding_service.embed_batch([chunk.text for chunk in chunks])
         if len(batch.embeddings) != len(chunks):
             raise DocumentIngestionError(
@@ -68,6 +80,12 @@ class DocumentIngestionService:
             for chunk, embedding in zip(chunks, batch.embeddings, strict=True)
         ]
         self._vector_store.upsert(records)
+        logger.info(
+            "Stored %d vectors for document_id=%s filename=%s",
+            len(records),
+            parsed_document.document_id,
+            parsed_document.filename,
+        )
 
         return DocumentIndexingResult(
             document_id=parsed_document.document_id,

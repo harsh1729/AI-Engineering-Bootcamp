@@ -1,6 +1,9 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from llm_sdk.enums import MessageRole, ProviderType
+
+from app.context.context_models import ContextSource
+from app.models.rag_config import RagOptions
 
 
 def _normalize_enum_value(enum_cls, value: object) -> object:
@@ -33,10 +36,9 @@ class ChatRequest(BaseModel):
     messages: list[ChatMessage]
     provider: ProviderType | None = None
     model: str | None = None
-    # IDs of documents (from POST /documents/upload) the user wants this
-    # message to draw on. Not used yet - retrieval/parsing come later. Kept
-    # out of LLMRequest so the SDK never needs to know documents exist.
+    # IDs of documents (from POST /documents/upload) that trigger RAG-backed chat.
     document_ids: list[str] = []
+    rag_options: RagOptions | None = None
 
     @field_validator("provider", mode="before")
     @classmethod
@@ -47,3 +49,4 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
     warning: str | None = None
+    sources: list[ContextSource] = Field(default_factory=list)

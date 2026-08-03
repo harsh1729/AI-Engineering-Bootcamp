@@ -5,6 +5,7 @@ class DocumentUploadResponse(BaseModel):
     document_id: str
     filename: str
     status: str
+    indexed_chunk_count: int
 
 
 class ParsedDocument(BaseModel):
