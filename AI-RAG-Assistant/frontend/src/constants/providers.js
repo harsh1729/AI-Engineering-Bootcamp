@@ -18,7 +18,7 @@ export const PROVIDERS = [
   },
 ];
 
-export const DEFAULT_PROVIDER = PROVIDERS[0];
+export const DEFAULT_PROVIDER = PROVIDERS[1];
 export const DEFAULT_MODEL = DEFAULT_PROVIDER.models[0];
 
 export function getProvider(providerValue) {

@@ -1,6 +1,28 @@
 import { useState } from "react";
 import DocumentUpload from "./DocumentUpload";
 
+function SendArrowIcon() {
+  return (
+    <svg
+      className="message-input-send-icon"
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M12 4L12 16M12 4L7 9M12 4L17 9"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export default function MessageInput({
   onSend,
   disabled,
@@ -13,6 +35,7 @@ export default function MessageInput({
   // [{ documentId, filename, indexedChunkCount?, ragOptions }]
 
   const canSend = value.trim().length > 0 && !disabled;
+  const isLoading = disabled && value.trim().length > 0;
 
   const updateAttachments = (updater) => {
     setAttachments((prev) => {
@@ -118,8 +141,13 @@ export default function MessageInput({
           className="message-input-send"
           onClick={handleSend}
           disabled={!canSend}
+          aria-label={isLoading ? loadingLabel : "Send message"}
         >
-          {disabled ? loadingLabel : "Send"}
+          {isLoading ? (
+            <span className="message-input-send-spinner" aria-hidden="true" />
+          ) : (
+            <SendArrowIcon />
+          )}
         </button>
 
         <DocumentUpload

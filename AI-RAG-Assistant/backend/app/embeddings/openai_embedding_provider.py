@@ -1,22 +1,14 @@
-from typing import cast
+from openai import OpenAI
 
-from openai import (
-    APIConnectionError,
-    APIStatusError,
-    InternalServerError,
-    OpenAI,
-    RateLimitError,
-)
-
-from app.config import EMBEDDING_MODEL, OPENAI_API_KEY
+from app.config import OPENAI_API_KEY, resolve_embedding_model
 from app.embeddings.base_embedding_provider import BaseEmbeddingProvider
-from app.embeddings.embedding_exceptions import EmbeddingProviderError, EmbeddingRateLimitError
-from app.embeddings.embedding_models import (
-    EmbeddingBatchResponse,
-    EmbeddingResponse,
-    EmbeddingUsage,
-    EmbeddingVector,
+from app.embeddings.embedding_models import EmbeddingBatchResponse
+from app.embeddings.embedding_provider_errors import raise_embedding_provider_error
+from app.embeddings.embedding_provider_utils import (
+    build_batch_from_indexed_items,
+    empty_batch_response,
 )
+from app.models.rag_config import EmbeddingProviderType
 
 
 class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
@@ -27,7 +19,7 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
         client: OpenAI | None = None,
         model: str | None = None,
     ) -> None:
-        self._model = model or EMBEDDING_MODEL
+        self._model = model or resolve_embedding_model(EmbeddingProviderType.OPENAI)
 
         if client is None:
             if not OPENAI_API_KEY:
@@ -36,67 +28,26 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
 
         self._client = client
 
-    def embed(self, text: str) -> EmbeddingResponse:
-        batch = self.embed_batch([text])
-        vector = batch.embeddings[0]
-        return EmbeddingResponse(
-            embedding=vector.embedding,
-            model=vector.model,
-            usage=batch.usage,
-        )
-
     def embed_batch(self, texts: list[str]) -> EmbeddingBatchResponse:
         if not texts:
-            # Synthetic zero usage: no provider request was made.
-            return EmbeddingBatchResponse(
-                embeddings=[],
-                usage=EmbeddingUsage(prompt_tokens=0, total_tokens=0),
-            )
+            return empty_batch_response()
 
         try:
             response = self._client.embeddings.create(
                 input=texts,
                 model=self._model,
             )
-        except RateLimitError as exc:
-            raise EmbeddingRateLimitError(str(exc)) from exc
-        except (APIConnectionError, APIStatusError, InternalServerError) as exc:
-            raise EmbeddingProviderError(str(exc)) from exc
+        except Exception as exc:
+            raise_embedding_provider_error(exc)
 
         return self._map_response(response, expected_count=len(texts))
 
     def _map_response(self, response, expected_count: int) -> EmbeddingBatchResponse:
-        usage = EmbeddingUsage(
+        items = ((item.index, item.embedding) for item in response.data)
+        return build_batch_from_indexed_items(
+            items,
+            expected_count=expected_count,
+            model=response.model,
             prompt_tokens=response.usage.prompt_tokens,
             total_tokens=response.usage.total_tokens,
-        )
-        results: list[EmbeddingVector | None] = [None] * expected_count
-
-        for item in response.data:
-            index = item.index
-            if index < 0 or index >= expected_count:
-                raise EmbeddingProviderError(
-                    f"Embedding response index {index} is out of range for batch size "
-                    f"{expected_count}"
-                )
-            if results[index] is not None:
-                raise EmbeddingProviderError(
-                    f"Duplicate embedding response index {index}"
-                )
-            results[index] = self._map_item(item, response)
-
-        missing_indices = [index for index, result in enumerate(results) if result is None]
-        if missing_indices:
-            raise EmbeddingProviderError(
-                f"Missing embedding response indices: {missing_indices}"
-            )
-
-        embeddings = cast(list[EmbeddingVector], results)
-
-        return EmbeddingBatchResponse(embeddings=embeddings, usage=usage)
-
-    def _map_item(self, item, response) -> EmbeddingVector:
-        return EmbeddingVector(
-            embedding=item.embedding,
-            model=response.model,
         )

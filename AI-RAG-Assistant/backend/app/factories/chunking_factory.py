@@ -1,6 +1,8 @@
 from app.chunking.base_chunker import BaseChunker
 from app.chunking.character_chunker import CharacterChunker
+from app.chunking.header_aware_chunker import HeaderAwareChunker
 from app.chunking.recursive_chunker import RecursiveChunker
+from app.chunking.sentence_chunker import SentenceChunker
 from app.models.rag_config import ChunkingStrategy
 
 
@@ -10,6 +12,8 @@ class ChunkingFactory:
     _STRATEGIES: dict[ChunkingStrategy, type[BaseChunker]] = {
         ChunkingStrategy.RECURSIVE: RecursiveChunker,
         ChunkingStrategy.CHARACTER: CharacterChunker,
+        ChunkingStrategy.SENTENCE: SentenceChunker,
+        ChunkingStrategy.HEADER_AWARE: HeaderAwareChunker,
     }
 
     @classmethod

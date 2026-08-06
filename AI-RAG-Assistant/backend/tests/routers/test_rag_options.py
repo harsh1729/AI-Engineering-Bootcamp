@@ -22,6 +22,14 @@ class TestRagOptionsCatalog:
             item["value"] == "recursive" for item in payload["chunking_strategies"]
         )
         assert any(item["value"] == "character" for item in payload["chunking_strategies"])
+        assert any(item["value"] == "sentence" for item in payload["chunking_strategies"])
+        assert any(item["value"] == "header_aware" for item in payload["chunking_strategies"])
+        assert any(item["value"] == "openai" for item in payload["embedding_providers"])
+        assert any(item["value"] == "voyage" for item in payload["embedding_providers"])
+        assert any(item["value"] == "cohere" for item in payload["embedding_providers"])
+        assert payload["embedding_models"]["openai"] == "text-embedding-3-small"
+        assert payload["embedding_models"]["voyage"] == "voyage-4-lite"
+        assert payload["embedding_models"]["cohere"] == "embed-v4.0"
 
 
 class TestUploadWithRagOptions:
@@ -67,4 +75,7 @@ class TestUploadWithRagOptions:
                 chunking_strategy=ChunkingStrategy.CHARACTER,
             )
         )
-        mock_ingestion.index_document.assert_called_once_with(DOCUMENT_ID)
+        mock_ingestion.index_document.assert_called_once_with(
+            DOCUMENT_ID,
+            chunking_strategy="character",
+        )

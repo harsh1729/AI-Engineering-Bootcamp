@@ -2,6 +2,11 @@ import uuid
 
 from app.chunking.base_chunker import BaseChunker
 from app.chunking.chunk_models import DocumentChunk
+from app.chunking.chunk_size_utils import (
+    merge_text_pieces,
+    split_by_character_window,
+    validate_chunk_params,
+)
 from app.chunking.table_segmentation import is_table_segment, segment_by_table_blocks
 from app.config import CHUNK_OVERLAP, CHUNK_SIZE
 from app.models.document import ParsedDocument
@@ -23,13 +28,7 @@ class RecursiveChunker(BaseChunker):
         chunk_size: int = CHUNK_SIZE,
         chunk_overlap: int = CHUNK_OVERLAP,
     ) -> None:
-        if chunk_size <= 0:
-            raise ValueError("chunk_size must be greater than 0")
-        if chunk_overlap < 0:
-            raise ValueError("chunk_overlap must be >= 0")
-        if chunk_overlap >= chunk_size:
-            raise ValueError("chunk_overlap must be less than chunk_size")
-
+        validate_chunk_params(chunk_size, chunk_overlap)
         self._chunk_size = chunk_size
         self._chunk_overlap = chunk_overlap
 
@@ -85,7 +84,11 @@ class RecursiveChunker(BaseChunker):
             return [text]
 
         if separator_index >= len(_SEPARATORS):
-            return self._character_chunk(text, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+            return split_by_character_window(
+                text,
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+            )
 
         separator = _SEPARATORS[separator_index]
         pieces = self._split_with_separator(text, separator)
@@ -116,7 +119,7 @@ class RecursiveChunker(BaseChunker):
                     )
                 )
 
-        return self._merge_pieces(
+        return merge_text_pieces(
             processed,
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
@@ -135,65 +138,3 @@ class RecursiveChunker(BaseChunker):
         segments.extend(part + separator for part in parts[1:-1])
         segments.append(parts[-1])
         return segments
-
-    def _merge_pieces(
-        self,
-        pieces: list[str],
-        *,
-        chunk_size: int,
-        chunk_overlap: int,
-    ) -> list[str]:
-        """Merge adjacent pieces into chunks up to `chunk_size` with overlap."""
-        if not pieces:
-            return []
-
-        chunks: list[str] = []
-        current: list[str] = []
-        total = 0
-
-        for piece in pieces:
-            piece_len = len(piece)
-            if current and total + piece_len > chunk_size:
-                chunks.append("".join(current))
-                while current and (
-                    total > chunk_overlap
-                    or (total + piece_len > chunk_size and total > 0)
-                ):
-                    total -= len(current[0])
-                    current = current[1:]
-
-            current.append(piece)
-            total += piece_len
-
-        if current:
-            chunks.append("".join(current))
-
-        return chunks
-
-    def _character_chunk(
-        self,
-        text: str,
-        *,
-        chunk_size: int,
-        chunk_overlap: int,
-    ) -> list[str]:
-        """Fixed-size fallback when no separator can reduce a segment further."""
-        if len(text) <= chunk_size:
-            return [text]
-
-        step = chunk_size - chunk_overlap
-        chunks: list[str] = []
-        start = 0
-
-        while start < len(text):
-            end = start + chunk_size
-            chunk_text = text[start:end]
-            if not chunk_text:
-                break
-
-            chunks.append(chunk_text)
-            if end >= len(text):
-                break
-            start += step
-
-        return chunks

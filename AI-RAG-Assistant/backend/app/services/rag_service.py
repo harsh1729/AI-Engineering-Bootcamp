@@ -2,7 +2,7 @@ from llm_sdk.enums import MessageRole
 from llm_sdk.models import LLMMessage, LLMRequest
 from llm_sdk.providers.llm_provider import LLMProvider
 
-from app.config import EMBEDDING_MODEL, RAG_DEBUG
+from app.config import RAG_DEBUG
 from app.context.context_builder import ContextBuilder, unique_document_sources
 from app.context.context_models import ContextRequest
 from app.models.rag import RAGRequest, RAGResponse
@@ -33,9 +33,8 @@ class RAGService:
 
     def ask(self, request: RAGRequest) -> RAGResponse:
         """Retrieve context, generate an answer via the LLM SDK, and return sources."""
-        retrieval_response = self._retrieval_service.retrieve(
-            self._build_retrieval_request(request)
-        )
+        retrieval_request = self._build_retrieval_request(request)
+        retrieval_response = self._retrieval_service.retrieve(retrieval_request)
         context_prompt = self._context_builder.build_prompt(
             ContextRequest(chunks=retrieval_response.chunks),
             request.query,
@@ -49,10 +48,9 @@ class RAGService:
         if RAG_DEBUG:
             log_rag_debug(
                 query=request.query,
-                embedding_model=EMBEDDING_MODEL,
+                top_k=retrieval_request.top_k,
                 retrieval_response=retrieval_response,
                 context_prompt=context_prompt,
-                llm_answer=answer,
             )
 
         return RAGResponse(

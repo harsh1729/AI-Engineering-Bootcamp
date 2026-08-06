@@ -1,0 +1,28 @@
+"""Common English abbreviations that should not end a sentence."""
+
+COMMON_ABBREVIATIONS = frozenset({
+    "dr",
+    "mr",
+    "mrs",
+    "ms",
+    "prof",
+    "sr",
+    "jr",
+    "inc",
+    "ltd",
+    "co",
+    "corp",
+    "vs",
+    "etc",
+    "eg",
+    "ie",
+    "st",
+    "ave",
+    "dept",
+    "est",
+    "approx",
+    "govt",
+    "no",
+    "fig",
+    "eq",
+})

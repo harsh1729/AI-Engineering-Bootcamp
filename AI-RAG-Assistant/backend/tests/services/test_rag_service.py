@@ -169,7 +169,7 @@ class TestRAGServiceAsk:
         with caplog.at_level(logging.INFO):
             rag_service.ask(RAGRequest(query="Hello?"))
 
-        assert "RAG DEBUG" not in caplog.text
+        assert "RETRIEVAL DEBUG" not in caplog.text
 
     def test_ask_emits_rag_debug_when_flag_enabled(
         self,
@@ -202,7 +202,7 @@ class TestRAGServiceAsk:
         with caplog.at_level(logging.INFO):
             rag_service.ask(RAGRequest(query="What is the refund policy?"))
 
-        assert "RAG DEBUG" in caplog.text
+        assert "RETRIEVAL DEBUG" in caplog.text
         assert "What is the refund policy?" in caplog.text
 
     def test_ask_uses_default_top_k_when_not_specified(

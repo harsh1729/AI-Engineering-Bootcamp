@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ProviderModelSelector from "../components/ProviderModelSelector";
 import RagOptionsPanel from "../components/RagOptionsPanel";
 import ChatHistory from "../components/ChatHistory";
 import MessageInput from "../components/MessageInput";
+import { fetchRagOptionsCatalog } from "../api/ragOptionsApi";
 import { DEFAULT_PROVIDER, DEFAULT_MODEL, getProvider } from "../constants/providers";
+import { DEFAULT_RAG_PIPELINE } from "../constants/ragPipeline";
 import { DEFAULT_RAG_OPTIONS } from "../constants/ragOptions";
 import { sendChatMessage, sendRagChatMessage } from "../api/chatApi";
 import "./ChatAssistant.css";
@@ -11,19 +13,24 @@ import "./ChatAssistant.css";
 function ChatAssistant() {
   const [provider, setProvider] = useState(DEFAULT_PROVIDER.value);
   const [model, setModel] = useState(DEFAULT_MODEL);
+  const [ragPipeline, setRagPipeline] = useState(DEFAULT_RAG_PIPELINE);
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingLabel, setLoadingLabel] = useState("Thinking...");
-  const [showAdvancedRag, setShowAdvancedRag] = useState(false);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [ragOptions, setRagOptions] = useState(DEFAULT_RAG_OPTIONS);
-  const [hasAttachments, setHasAttachments] = useState(false);
+  const [ragCatalog, setRagCatalog] = useState(null);
 
-  const handleAttachmentsChange = (hasAnyAttachments) => {
-    setHasAttachments(hasAnyAttachments);
-    if (!hasAnyAttachments) {
-      setShowAdvancedRag(false);
-    }
-  };
+  useEffect(() => {
+    fetchRagOptionsCatalog()
+      .then((catalog) => {
+        setRagCatalog(catalog);
+        setRagOptions(catalog.defaults ?? DEFAULT_RAG_OPTIONS);
+      })
+      .catch(() => {
+        setRagCatalog(null);
+      });
+  }, []);
 
   const handleProviderChange = (nextProvider) => {
     if (nextProvider === provider) {
@@ -63,7 +70,7 @@ function ChatAssistant() {
 
   const handleSend = async (text, documentIds, attachmentRagOptions) => {
     const hasDocuments = documentIds?.length > 0;
-    const activeRagOptions = showAdvancedRag
+    const activeRagOptions = showAdvancedOptions
       ? attachmentRagOptions ?? ragOptions
       : null;
     const conversation = [...toConversationHistory(messages), { role: "user", content: text }];
@@ -121,35 +128,77 @@ function ChatAssistant() {
 
   return (
     <div className="app">
-      <h1 className="app-title">AI RAG Assistant</h1>
+      <div className="app-config">
+        <h2 className="app-config-heading">Custom Configuration</h2>
 
-      <ProviderModelSelector
-        providerValue={provider}
-        modelValue={model}
-        disabled={isLoading}
-        onProviderChange={handleProviderChange}
-        onModelChange={setModel}
-      />
-
-      {hasAttachments && (
-        <RagOptionsPanel
-          enabled={showAdvancedRag}
-          onEnabledChange={setShowAdvancedRag}
-          ragOptions={ragOptions}
-          onRagOptionsChange={setRagOptions}
+        <ProviderModelSelector
+          providerValue={provider}
+          modelValue={model}
+          ragPipelineValue={ragPipeline}
           disabled={isLoading}
+          onProviderChange={handleProviderChange}
+          onModelChange={setModel}
+          onRagPipelineChange={setRagPipeline}
         />
-      )}
 
-      <ChatHistory messages={messages} isLoading={isLoading} loadingLabel={loadingLabel} />
+        <div className="advanced-options-bar">
+          <button
+            type="button"
+            className="advanced-options-toggle"
+            onClick={() => setShowAdvancedOptions((open) => !open)}
+            disabled={isLoading}
+            aria-expanded={showAdvancedOptions}
+          >
+            {showAdvancedOptions ? (
+            <>
+              <span className="advanced-options-toggle-label advanced-options-toggle-label-desktop">
+                Hide Advanced RAG Options
+              </span>
+              <span className="advanced-options-toggle-label advanced-options-toggle-label-mobile">
+                Hide RAG options
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="advanced-options-toggle-label advanced-options-toggle-label-desktop">
+                Show Advanced RAG Options
+              </span>
+              <span className="advanced-options-toggle-label advanced-options-toggle-label-mobile">
+                Show RAG options
+              </span>
+            </>
+          )}
+          </button>
+          <span className="rag-options-hint rag-options-hint-desktop">
+            Configure before uploading documents.
+          </span>
+          <span className="rag-options-hint rag-options-hint-mobile">(configure before upload)</span>
+        </div>
 
-      <MessageInput
-        onSend={handleSend}
-        disabled={isLoading}
-        loadingLabel={loadingLabel}
-        ragOptions={showAdvancedRag ? ragOptions : null}
-        onAttachmentsChange={handleAttachmentsChange}
-      />
+        {showAdvancedOptions && (
+          <RagOptionsPanel
+            ragOptions={ragOptions}
+            onRagOptionsChange={setRagOptions}
+            disabled={isLoading}
+            chunkingStrategies={ragCatalog?.chunking_strategies}
+            embeddingProviders={ragCatalog?.embedding_providers}
+            vectorStores={ragCatalog?.vector_stores}
+            embeddingModels={ragCatalog?.embedding_models ?? {}}
+          />
+        )}
+      </div>
+
+      <div className="app-conversation">
+        <ChatHistory messages={messages} isLoading={isLoading} loadingLabel={loadingLabel} />
+
+        <MessageInput
+          onSend={handleSend}
+          disabled={isLoading}
+          loadingLabel={loadingLabel}
+          ragOptions={showAdvancedOptions ? ragOptions : null}
+          onAttachmentsChange={() => {}}
+        />
+      </div>
     </div>
   );
 }

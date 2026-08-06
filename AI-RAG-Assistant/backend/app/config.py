@@ -40,13 +40,55 @@ ALLOWED_DOCUMENT_EXTENSIONS = {
     ".rtf",
 }
 
-# Embedding model used by app.embeddings.openai_embedding_provider.
-# Override via EMBEDDING_MODEL in the environment.
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
+# Embedding configuration
+EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "openai").lower()
 
-# OpenAI API key for embedding requests. Validated when OpenAIEmbeddingProvider
-# is instantiated without an injected client.
+DEFAULT_EMBEDDING_MODELS = {
+    "openai": "text-embedding-3-small",
+    "voyage": "voyage-4-lite",
+    "cohere": "embed-v4.0",
+}
+
+# Per-provider model overrides in .env (preferred).
+# EMBEDDING_MODEL is kept as a backward-compatible alias for OpenAI only.
+OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL") or os.getenv(
+    "EMBEDDING_MODEL"
+)
+VOYAGE_EMBEDDING_MODEL = os.getenv("VOYAGE_EMBEDDING_MODEL")
+COHERE_EMBEDDING_MODEL = os.getenv("COHERE_EMBEDDING_MODEL")
+
+_PROVIDER_EMBEDDING_MODEL_ENV = {
+    "openai": OPENAI_EMBEDDING_MODEL,
+    "voyage": VOYAGE_EMBEDDING_MODEL,
+    "cohere": COHERE_EMBEDDING_MODEL,
+}
+
+# Resolved default for the configured EMBEDDING_PROVIDER (legacy export).
+EMBEDDING_MODEL = (
+    _PROVIDER_EMBEDDING_MODEL_ENV.get(EMBEDDING_PROVIDER)
+    or DEFAULT_EMBEDDING_MODELS.get(
+        EMBEDDING_PROVIDER,
+        DEFAULT_EMBEDDING_MODELS["openai"],
+    )
+)
+
+# API keys for embedding providers. Validated when a provider is instantiated.
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+VOYAGE_API_KEY = os.getenv("VOYAGE_API_KEY")
+COHERE_API_KEY = os.getenv("COHERE_API_KEY")
+
+
+def default_embedding_model(provider: str) -> str:
+    """Return the default model name for an embedding provider."""
+    return DEFAULT_EMBEDDING_MODELS.get(provider, DEFAULT_EMBEDDING_MODELS["openai"])
+
+
+def resolve_embedding_model(provider: str) -> str:
+    """Return the provider-specific model override or that provider's default."""
+    configured = _PROVIDER_EMBEDDING_MODEL_ENV.get(provider)
+    if configured:
+        return configured
+    return default_embedding_model(provider)
 
 # Persistent Chroma storage for app.vector_store.chroma_vector_store.
 _chroma_persist_dir = os.getenv("CHROMA_PERSIST_DIR")
@@ -57,8 +99,10 @@ CHROMA_PERSIST_DIR = (
 )
 CHROMA_COLLECTION_NAME = os.getenv("CHROMA_COLLECTION_NAME", "document_chunks")
 
-# Temporary flag for structured RAG pipeline logging. Set RAG_DEBUG=true in .env.
+# Temporary flags for structured pipeline logging during development.
+# Set RAG_DEBUG=true or CHUNKING_DEBUG=true in .env.
 RAG_DEBUG = os.getenv("RAG_DEBUG", "false").lower() in ("true", "1", "yes")
+CHUNKING_DEBUG = os.getenv("CHUNKING_DEBUG", "false").lower() in ("true", "1", "yes")
 
 # Default chunk size for document splitting. Table blocks use 2x this limit.
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1500"))

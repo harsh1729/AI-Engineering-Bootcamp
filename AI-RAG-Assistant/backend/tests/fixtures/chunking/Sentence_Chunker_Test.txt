@@ -1,0 +1,23 @@
+1. Retrieval-Augmented Generation combines dense vector search with instruction-tuned language models so answers stay grounded in uploaded documentation rather than model parametric memory alone This design improves recall, controls token budgets, and keeps retrieval latency predictable in production RAG deployments serving cus.
+
+2. Embedding models such as text-embedding-3-small map passages into high-dimensional vectors where cosine similarity approximates semantic relatedness between user queries and indexed document chunks This design improves recall, controls token budgets, and keeps retrieval latency predictable in production RAG deployments serving cu.
+
+3. A production FastAPI service usually exposes document upload endpoints that parse files, apply a chunking strategy, batch-embed segments, and persist vectors in a store like ChromaDB with document_id metadata filters This design improves recall, controls token budgets, and keeps retrieval latency predictable in production RAG deployme.
+
+4. Sentence-aware chunking first splits on punctuation boundaries, optionally skips common abbreviations like Dr. or Inc., then merges whole sentences until the configured CHUNK_SIZE budget is reached without cutting mid-sentence This design improves recall, controls token budgets, and keeps retrieval latency predictable in production RAG dep.
+
+5. Vector databases index embeddings for approximate nearest-neighbor search; at query time the system embeds the question, retrieves top_k chunks, and injects them into a grounded system prompt with explicit source numbering This design improves recall, controls token budgets, and keeps retrieval latency predictable in production RAG deployments .
+
+6. Header-aware chunking detects markdown or HTML headings, keeps section bodies together when possible, and repeats the section title in every sub-chunk when a section exceeds the size limit so context is never orphaned This design improves recall, controls token budgets, and keeps retrieval latency predictable in production RAG deployments .
+
+7. Recursive chunking walks separators from paragraphs down to characters, which works well for mixed PDF text but can still struggle with multi-column layouts or tables unless additional table-aware segmentation is applied This design improves recall, controls token budgets, and keeps retrieval latency predictable in production RAG depl.
+
+8. Character chunking provides a simple sliding window baseline; it ignores semantics but guarantees predictable sizes and is useful when benchmarking embedding throughput or comparing against structure-aware strategies This design improves recall, controls token budgets, and keeps retrieval latency predictable in production RAG dep.
+
+9. Overlap between consecutive chunks preserves continuity when facts span window boundaries; typical overlap is twenty percent of chunk size so entities mentioned at the end of one chunk still appear at the start of the next This design improves recall, controls token budgets, and keeps retrieval latency predictable in product.
+
+10. Metadata such as source_filename, chunk_index, and document_id travels with each vector so retrieval can filter to user-attached documents and the UI can cite filenames after generation completes This design improves recall, controls token budgets, and keeps retrieval latency predictable in production RAG deployments serving customer docu.
+
+11. LLM providers differ in context limits, tool-calling support, and streaming behavior; the orchestration layer must normalize requests, handle truncation warnings, and keep provider-specific token counting out of business logic when possible This design improves recall, controls token budgets, and keeps retrieval latency predictable in producti.
+
+12. Evaluating chunking quality requires deterministic fixtures, logging retrieved chunks under RAG_DEBUG, and measuring whether answers cite the correct section without hallucinating facts absent from the retrieved context window This design improves recall, controls token budgets, and keeps retrieval latency predictable in production R.

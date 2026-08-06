@@ -55,7 +55,10 @@ class TestUploadDocument:
             "status": "processed",
             "indexed_chunk_count": 4,
         }
-        mock_ingestion.index_document.assert_called_once_with(DOCUMENT_ID)
+        mock_ingestion.index_document.assert_called_once_with(
+            DOCUMENT_ID,
+            chunking_strategy="recursive",
+        )
 
     def test_upload_returns_500_when_ingestion_fails(
         self,

@@ -239,3 +239,36 @@ class TestDocumentIngestionServiceIndexDocument:
         chunking_service.chunk_document.assert_not_called()
         embedding_service.embed_batch.assert_not_called()
         vector_store.upsert.assert_not_called()
+
+    def test_emits_chunking_debug_when_flag_enabled(
+        self,
+        ingestion_service: DocumentIngestionService,
+        document_parser: MagicMock,
+        chunking_service: MagicMock,
+        embedding_service: MagicMock,
+        vector_store: MagicMock,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog,
+    ) -> None:
+        import logging
+
+        monkeypatch.setattr("app.services.document_ingestion.CHUNKING_DEBUG", True)
+        document_parser.parse.return_value = _parsed()
+        chunking_service.chunk_document.return_value = _chunks()
+        mock_chunker = MagicMock()
+        mock_chunker._chunk_size = 1500
+        mock_chunker._chunk_overlap = 300
+        chunking_service._chunker = mock_chunker
+        embedding_service.embed_batch.return_value = _batch_response()
+
+        with caplog.at_level(logging.INFO):
+            ingestion_service.index_document(
+                DOCUMENT_ID,
+                chunking_strategy="sentence",
+            )
+
+        assert "CHUNKING DEBUG" in caplog.text
+        assert "sentence" in caplog.text
+        assert "First chunk text." in caplog.text
+        assert "chunk-0" in caplog.text
+

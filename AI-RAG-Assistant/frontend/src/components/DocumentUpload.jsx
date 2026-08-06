@@ -5,19 +5,27 @@ import spinnerIcon from "../assets/spinner.svg";
 
 // Keep in sync with backend app.config.ALLOWED_DOCUMENT_EXTENSIONS
 // (modern formats only - legacy .doc/.xls/.ppt are rejected server-side if enabled).
-const ACCEPTED_FILE_TYPES = ".pdf,.txt,.docx,.xlsx,.pptx,.rtf";
+const ACCEPTED_FILE_TYPES =
+  ".pdf,.txt,.docx,.xlsx,.pptx,.rtf,application/pdf,text/plain," +
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document," +
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet," +
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation," +
+  "application/rtf,text/rtf";
+const ACCEPTED_PHOTO_TYPES = "image/*";
+const PHOTO_UPLOAD_UNSUPPORTED_MESSAGE =
+  "Photo upload isn't supported yet. Use Files to attach PDF, Word, or text documents.";
 const ERROR_MESSAGE_DURATION_MS = 6000;
 
 function DocumentUpload({ attachmentCount, onUploaded, ragOptions }) {
   const containerRef = useRef(null);
   const fileInputRef = useRef(null);
+  const photoInputRef = useRef(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [status, setStatus] = useState("idle"); // idle | uploading | error
   const [errorMessage, setErrorMessage] = useState("");
 
   const atLimit = attachmentCount >= MAX_ATTACHMENTS;
 
-  // Closes the menu on any click outside it, same as a standard dropdown.
   useEffect(() => {
     if (!isMenuOpen) return;
 
@@ -28,12 +36,13 @@ function DocumentUpload({ attachmentCount, onUploaded, ragOptions }) {
     };
 
     document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("touchstart", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
+    };
   }, [isMenuOpen]);
 
-  // The error badge is transient - clear it automatically so it doesn't
-  // linger indefinitely. Re-running this effect on every status change means
-  // starting a new upload cancels any pending clear.
   useEffect(() => {
     if (status !== "error") return;
 
@@ -45,23 +54,37 @@ function DocumentUpload({ attachmentCount, onUploaded, ragOptions }) {
     return () => clearTimeout(timeoutId);
   }, [status]);
 
-  const handleFilesOptionClick = () => {
-    setIsMenuOpen(false);
+  const openFilePicker = () => {
     fileInputRef.current?.click();
   };
 
-  // Photos isn't implemented yet - clicking it only closes the menu.
+  const openPhotoPicker = () => {
+    photoInputRef.current?.click();
+  };
+
+  const handleFilesOptionClick = () => {
+    setIsMenuOpen(false);
+    openFilePicker();
+  };
+
   const handlePhotosOptionClick = () => {
     setIsMenuOpen(false);
+    openPhotoPicker();
+  };
+
+  const handleTriggerClick = () => {
+    if (status === "uploading" || atLimit) {
+      return;
+    }
+
+    setIsMenuOpen((open) => !open);
   };
 
   const handleFileChange = async (event) => {
     const file = event.target.files?.[0];
-    // Reset so selecting the same file again still fires onChange.
     event.target.value = "";
     if (!file || atLimit) return;
 
-    // Client-side guard - backend still enforces the real limit with HTTP 413.
     if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
       setStatus("error");
       setErrorMessage(`Maximum document size is ${MAX_DOCUMENT_SIZE_MB} MB.`);
@@ -86,6 +109,15 @@ function DocumentUpload({ attachmentCount, onUploaded, ragOptions }) {
     }
   };
 
+  const handlePhotoChange = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setStatus("error");
+    setErrorMessage(PHOTO_UPLOAD_UNSUPPORTED_MESSAGE);
+  };
+
   return (
     <div className="document-upload" ref={containerRef}>
       <input
@@ -96,12 +128,21 @@ function DocumentUpload({ attachmentCount, onUploaded, ragOptions }) {
         className="document-upload-input"
       />
 
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept={ACCEPTED_PHOTO_TYPES}
+        onChange={handlePhotoChange}
+        className="document-upload-input"
+      />
+
       <button
         type="button"
         className="document-upload-trigger"
-        onClick={() => setIsMenuOpen((open) => !open)}
+        onClick={handleTriggerClick}
         disabled={status === "uploading" || atLimit}
         aria-label="Upload document"
+        aria-expanded={isMenuOpen}
         title={atLimit ? `You can attach up to ${MAX_ATTACHMENTS} files` : "Upload document"}
       >
         {status === "uploading" ? (

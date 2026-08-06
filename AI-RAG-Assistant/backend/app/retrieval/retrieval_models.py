@@ -5,7 +5,7 @@ class RetrievalRequest(BaseModel):
     """Input for a similarity search over indexed document chunks."""
 
     query: str
-    top_k: int = Field(default=5, gt=0)
+    top_k: int = Field(default=3, gt=0)
     document_ids: list[str] | None = None
     # TODO: metadata_filters: dict[str, str] | None = None — filter by chunk metadata
     # TODO: minimum_score: float | None = None — drop results below this score threshold

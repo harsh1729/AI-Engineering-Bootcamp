@@ -13,6 +13,7 @@ from app.models.rag_config import (
     RagOptionsCatalogResponse,
     VectorStoreType,
 )
+from app.config import resolve_embedding_model
 from app.services.document_exceptions import (
     DocumentIngestionError,
     DocumentNotFoundError,
@@ -49,13 +50,21 @@ def get_rag_options_catalog() -> RagOptionsCatalogResponse:
         chunking_strategies=[
             RagOptionsCatalogItem(value=ChunkingStrategy.RECURSIVE, label="Recursive"),
             RagOptionsCatalogItem(value=ChunkingStrategy.CHARACTER, label="Character"),
+            RagOptionsCatalogItem(value=ChunkingStrategy.SENTENCE, label="Sentence"),
+            RagOptionsCatalogItem(value=ChunkingStrategy.HEADER_AWARE, label="Header Aware"),
         ],
         embedding_providers=[
             RagOptionsCatalogItem(value=EmbeddingProviderType.OPENAI, label="OpenAI"),
+            RagOptionsCatalogItem(value=EmbeddingProviderType.VOYAGE, label="Voyage AI"),
+            RagOptionsCatalogItem(value=EmbeddingProviderType.COHERE, label="Cohere"),
         ],
         vector_stores=[
             RagOptionsCatalogItem(value=VectorStoreType.CHROMA, label="Chroma"),
         ],
+        embedding_models={
+            provider.value: resolve_embedding_model(provider.value)
+            for provider in EmbeddingProviderType
+        },
         defaults=DEFAULT_RAG_OPTIONS,
     )
 
@@ -67,10 +76,12 @@ def upload_document(
 ) -> DocumentUploadResponse:
     filename = file.filename or ""
     options = _parse_rag_options(rag_options)
+    selected = options.model_dump(mode="json")
     logger.info(
-        "Uploading document filename=%s rag_options=%s",
+        "Selected RAG options for upload filename=%s form_field_provided=%s options=%s",
         filename,
-        options.model_dump(),
+        rag_options is not None,
+        selected,
     )
 
     try:
@@ -90,7 +101,10 @@ def upload_document(
     ingestion_service = build_document_ingestion_service(options)
 
     try:
-        indexing_result = ingestion_service.index_document(document_id)
+        indexing_result = ingestion_service.index_document(
+            document_id,
+            chunking_strategy=options.chunking_strategy.value,
+        )
     except DocumentNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except UnsupportedDocumentTypeError as exc:

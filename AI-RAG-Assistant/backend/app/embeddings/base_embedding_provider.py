@@ -11,9 +11,11 @@ class BaseEmbeddingProvider(ABC):
     chunking, document parsing, vector storage, or retrieval.
     """
 
-    @abstractmethod
     def embed(self, text: str) -> EmbeddingResponse:
         """Return the embedding vector for a single text input."""
+        from app.embeddings.embedding_provider_utils import build_embedding_response
+
+        return build_embedding_response(self.embed_batch([text]))
 
     @abstractmethod
     def embed_batch(self, texts: list[str]) -> EmbeddingBatchResponse:
