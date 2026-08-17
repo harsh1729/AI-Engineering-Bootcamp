@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import RecentChatsList from "../components/RecentChatsList";
+import { useAuth } from "../context/AuthContext";
+import { useChatSession } from "../context/ChatSessionContext";
 import "./Sidebar.css";
 
 const NAV_ITEMS = [
@@ -9,8 +12,24 @@ const NAV_ITEMS = [
   { to: "/settings", label: "Settings" },
 ];
 
-function getPageTitle(pathname) {
-  const match = NAV_ITEMS.find((item) =>
+const ADMIN_NAV_ITEM = { to: "/approve-users", label: "Approve Users" };
+
+function getNavItems(isAdmin) {
+  if (!isAdmin) {
+    return NAV_ITEMS;
+  }
+
+  return [
+    NAV_ITEMS[0],
+    NAV_ITEMS[1],
+    NAV_ITEMS[2],
+    ADMIN_NAV_ITEM,
+    NAV_ITEMS[3],
+  ];
+}
+
+function getPageTitle(pathname, isAdmin) {
+  const match = getNavItems(isAdmin).find((item) =>
     item.end ? pathname === item.to : pathname.startsWith(item.to),
   );
   return match?.label ?? "AI RAG Assistant";
@@ -56,10 +75,22 @@ function CloseIcon() {
   );
 }
 
+function getFirstName(fullName) {
+  const trimmed = fullName?.trim();
+  if (!trimmed) {
+    return "there";
+  }
+  return trimmed.split(/\s+/)[0];
+}
+
 export default function Sidebar() {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
-  const pageTitle = getPageTitle(location.pathname);
+  const { activeChatTitle } = useChatSession();
+  const { user, logout, isLoading: isAuthLoading } = useAuth();
+  const pageTitle = getPageTitle(location.pathname, user?.is_admin);
+  const isAssistantRoute = location.pathname.startsWith("/assistant");
+  const navItems = getNavItems(Boolean(user?.is_admin));
 
   useEffect(() => {
     setMenuOpen(false);
@@ -80,6 +111,43 @@ export default function Sidebar() {
 
   const closeMenu = () => setMenuOpen(false);
 
+  const handleLogout = () => {
+    const confirmed = window.confirm("Log out of your account?");
+    if (!confirmed) {
+      return;
+    }
+
+    logout();
+    closeMenu();
+  };
+
+  const authSection = (
+    <div className="sidebar-auth">
+      {isAuthLoading ? (
+        <p className="sidebar-auth-status">Checking session...</p>
+      ) : user ? (
+        <>
+          <p className="sidebar-auth-welcome">Welcome {getFirstName(user.name)}</p>
+          <button type="button" className="sidebar-auth-logout" onClick={handleLogout}>
+            Log out
+          </button>
+        </>
+      ) : (
+        <p className="sidebar-auth-links">
+          <NavLink to="/login" className="sidebar-auth-link" onClick={closeMenu}>
+            Log-in
+          </NavLink>
+          <span className="sidebar-auth-separator" aria-hidden="true">
+            {" / "}
+          </span>
+          <NavLink to="/register" className="sidebar-auth-link" onClick={closeMenu}>
+            Register
+          </NavLink>
+        </p>
+      )}
+    </div>
+  );
+
   return (
     <>
       <nav className="sidebar" aria-label="Main navigation">
@@ -87,7 +155,7 @@ export default function Sidebar() {
           <p className="sidebar-title">AI RAG Assistant</p>
 
           <ul className="sidebar-nav">
-            {NAV_ITEMS.map((item) => (
+            {navItems.map((item) => (
               <li key={item.to}>
                 <NavLink
                   to={item.to}
@@ -101,6 +169,9 @@ export default function Sidebar() {
               </li>
             ))}
           </ul>
+
+          <RecentChatsList />
+          {authSection}
         </div>
 
         <div className="sidebar-mobile-header">
@@ -114,7 +185,12 @@ export default function Sidebar() {
           >
             {menuOpen ? <CloseIcon /> : <MenuIcon />}
           </button>
-          <h1 className="sidebar-mobile-title">{pageTitle}</h1>
+          <div className="sidebar-mobile-title-wrap">
+            <h1 className="sidebar-mobile-title">{pageTitle}</h1>
+            {isAssistantRoute && activeChatTitle && (
+              <p className="sidebar-mobile-subtitle">{activeChatTitle}</p>
+            )}
+          </div>
         </div>
       </nav>
 
@@ -145,7 +221,7 @@ export default function Sidebar() {
         </div>
 
         <ul className="sidebar-nav sidebar-drawer-nav">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <li key={item.to}>
               <NavLink
                 to={item.to}
@@ -160,6 +236,9 @@ export default function Sidebar() {
             </li>
           ))}
         </ul>
+
+        <RecentChatsList compact onSelect={closeMenu} />
+        {authSection}
       </aside>
     </>
   );

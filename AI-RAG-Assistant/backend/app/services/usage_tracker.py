@@ -1,36 +1,35 @@
-from app.config import MAX_DEMO_INTERACTIONS
+import uuid
+
+from app.config import LOGGED_IN_USER_INTERACTIONS, MAX_DEMO_INTERACTIONS
+from app.database.repositories.guest_usage_repository import GuestUsageRepository
+from app.database.repositories.user_usage_repository import UserUsageRepository
 
 
-class UsageLimitExceeded(Exception):
-    """Raised when a guest has exhausted their demo interaction budget."""
+class UsageTrackerService:
+    """Persists guest and logged-in user interaction counts in Postgres."""
 
+    def __init__(
+        self,
+        guest_usage_repository: GuestUsageRepository,
+        user_usage_repository: UserUsageRepository,
+        max_guest_interactions: int = MAX_DEMO_INTERACTIONS,
+        max_user_interactions: int = LOGGED_IN_USER_INTERACTIONS,
+    ) -> None:
+        self._guest_usage_repository = guest_usage_repository
+        self._user_usage_repository = user_usage_repository
+        self._max_guest_interactions = max_guest_interactions
+        self._max_user_interactions = max_user_interactions
 
-class InMemoryUsageTracker:
-    """Tracks per-guest interaction counts in a process-local dict.
+    async def record_guest_interaction(self, guest_id: str) -> int:
+        """Counts one guest interaction. Raises UsageLimitExceeded at the guest cap."""
+        return await self._guest_usage_repository.record_interaction(
+            guest_id,
+            self._max_guest_interactions,
+        )
 
-    This is a demo-only implementation: state is lost on restart and isn't
-    shared across processes. Migrating to a persistent store later (e.g.
-    Postgres) only requires a class with the same `record_interaction`
-    method - callers never touch the underlying storage directly.
-    """
-
-    def __init__(self, max_interactions: int = MAX_DEMO_INTERACTIONS) -> None:
-        self._max_interactions = max_interactions
-        self._usage: dict[str, int] = {}
-
-    def record_interaction(self, guest_id: str) -> int:
-        """Counts one user interaction for `guest_id`. Raises
-        UsageLimitExceeded (without recording it) if the guest has already
-        reached their limit, so blocked requests never reach the LLM."""
-        current = self._usage.get(guest_id, 0)
-
-        if current >= self._max_interactions:
-            raise UsageLimitExceeded(
-                f"Demo usage limit of {self._max_interactions} messages reached for this session."
-            )
-
-        self._usage[guest_id] = current + 1
-        return self._usage[guest_id]
-
-
-usage_tracker = InMemoryUsageTracker()
+    async def record_user_interaction(self, user_id: uuid.UUID) -> int:
+        """Counts one logged-in user interaction. Raises UsageLimitExceeded at the user cap."""
+        return await self._user_usage_repository.record_interaction(
+            user_id,
+            self._max_user_interactions,
+        )

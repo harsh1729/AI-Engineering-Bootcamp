@@ -8,6 +8,22 @@ class DocumentUploadResponse(BaseModel):
     indexed_chunk_count: int
 
 
+class DocumentSummary(BaseModel):
+    id: str
+    filename: str
+    content_type: str
+    chunking_strategy: str
+    embedding_provider: str
+    vector_db: str
+    chunk_count: int
+    user_id: str | None = None
+    guest_id: str | None = None
+
+
+class DocumentListResponse(BaseModel):
+    documents: list[DocumentSummary]
+
+
 class ParsedDocument(BaseModel):
     """Plain-text extraction result for one uploaded document.
 

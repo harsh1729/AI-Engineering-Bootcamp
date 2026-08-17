@@ -6,6 +6,7 @@ export default function ProviderModelSelector({
   modelValue,
   ragPipelineValue,
   disabled = false,
+  ragPipelineDisabled = false,
   onProviderChange,
   onModelChange,
   onRagPipelineChange,
@@ -51,7 +52,7 @@ export default function ProviderModelSelector({
         <select
           id="rag-pipeline-select"
           value={ragPipelineValue}
-          disabled={disabled}
+          disabled={disabled || ragPipelineDisabled}
           onChange={(event) => onRagPipelineChange(event.target.value)}
         >
           {RAG_PIPELINES.map((pipeline) => (

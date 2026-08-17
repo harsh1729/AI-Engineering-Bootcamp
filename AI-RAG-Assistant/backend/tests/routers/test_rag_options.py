@@ -1,18 +1,31 @@
-from unittest.mock import MagicMock, patch
+from io import BytesIO
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.database.deps import get_document_repository
 from app.main import app
 from app.models.rag_config import ChunkingStrategy, RagOptions
-
-client = TestClient(app)
 
 DOCUMENT_ID = "11111111-2222-3333-4444-555555555555"
 
 
+@pytest.fixture
+def client() -> TestClient:
+    mock_repo = MagicMock()
+
+    async def override_document_repository():
+        yield mock_repo
+
+    app.dependency_overrides[get_document_repository] = override_document_repository
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
+
+
 class TestRagOptionsCatalog:
-    def test_returns_available_rag_options(self) -> None:
+    def test_returns_available_rag_options(self, client: TestClient) -> None:
         response = client.get("/rag/options")
 
         assert response.status_code == 200
@@ -30,11 +43,14 @@ class TestRagOptionsCatalog:
         assert payload["embedding_models"]["openai"] == "text-embedding-3-small"
         assert payload["embedding_models"]["voyage"] == "voyage-4-lite"
         assert payload["embedding_models"]["cohere"] == "embed-v4.0"
+        assert any(item["value"] == "chroma" for item in payload["vector_stores"])
+        assert any(item["value"] == "pinecone" for item in payload["vector_stores"])
 
 
 class TestUploadWithRagOptions:
     def test_upload_builds_ingestion_service_from_rag_options(
         self,
+        client: TestClient,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         mock_ingestion = MagicMock()
@@ -43,28 +59,30 @@ class TestUploadWithRagOptions:
         )
 
         monkeypatch.setattr(
-            "app.routers.documents.save_uploaded_document",
-            lambda file: DOCUMENT_ID,
+            "app.routers.documents.save_uploaded_file",
+            lambda file: (DOCUMENT_ID, "text"),
         )
         monkeypatch.setattr(
             "app.routers.documents.validate_upload_extension",
-            lambda filename: None,
+            lambda filename: (".txt", "text"),
         )
         monkeypatch.setattr(
             "app.routers.documents.enforce_upload_size_limit",
-            lambda file: None,
+            lambda file, content_type: None,
         )
 
         with patch(
             "app.routers.documents.build_document_ingestion_service",
             return_value=mock_ingestion,
-        ) as build_service:
-            from io import BytesIO
-
+        ) as build_service, patch(
+            "app.routers.documents.save_indexed_document",
+            new=AsyncMock(),
+        ):
             response = client.post(
                 "/documents/upload",
                 files={"file": ("notes.txt", BytesIO(b"hello"), "text/plain")},
                 data={
+                    "guest_id": "guest-123",
                     "rag_options": '{"chunking_strategy":"character","embedding_provider":"openai","vector_store":"chroma"}',
                 },
             )
@@ -78,4 +96,5 @@ class TestUploadWithRagOptions:
         mock_ingestion.index_document.assert_called_once_with(
             DOCUMENT_ID,
             chunking_strategy="character",
+            original_filename="notes.txt",
         )

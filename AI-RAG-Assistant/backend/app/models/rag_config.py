@@ -18,6 +18,7 @@ class EmbeddingProviderType(StrEnum):
 
 class VectorStoreType(StrEnum):
     CHROMA = "chroma"
+    PINECONE = "pinecone"
 
 
 class RagOptions(BaseModel):
@@ -37,9 +38,15 @@ class RagOptionsCatalogItem(BaseModel):
     enabled: bool = True
 
 
+class PineconeIndexCatalogEntry(BaseModel):
+    index_name: str
+    dimension: int
+
+
 class RagOptionsCatalogResponse(BaseModel):
     chunking_strategies: list[RagOptionsCatalogItem]
     embedding_providers: list[RagOptionsCatalogItem]
     vector_stores: list[RagOptionsCatalogItem]
     embedding_models: dict[str, str]
     defaults: RagOptions
+    pinecone_indexes: dict[str, PineconeIndexCatalogEntry] | None = None

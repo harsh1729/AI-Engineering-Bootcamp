@@ -1,7 +1,11 @@
+from dataclasses import dataclass
+
 from llm_sdk.enums import MessageRole
+from llm_sdk.models import LLMRequest
 from llm_sdk.providers.llm_provider import LLMProvider
 
 from app.context.context_builder import ContextBuilder
+from app.context.context_models import ContextSource
 from app.llm.llm_request_builder import build_chat_llm_request
 from app.models.chat import ChatRequest, ChatResponse
 from app.models.rag import RAGRequest
@@ -15,6 +19,13 @@ def _truncation_warning(finish_reason: str | None) -> str | None:
     if "max" in reason and "token" in reason:
         return "The response was cut off because the token limit was reached."
     return None
+
+
+@dataclass(frozen=True)
+class PreparedStreamRequest:
+    llm_request: LLMRequest
+    sources: list[ContextSource]
+    rag_service: RAGService | None = None
 
 
 class ChatService:
@@ -36,6 +47,22 @@ class ChatService:
             return self._rag_chat(request)
         return self._direct_chat(request)
 
+    def prepare_stream(self, request: ChatRequest) -> PreparedStreamRequest:
+        """Build the LLM request (and optional RAG service) for streaming."""
+        if request.document_ids:
+            rag_service = self._resolve_rag_service(request)
+            prepared = rag_service.prepare(self._to_rag_request(request))
+            return PreparedStreamRequest(
+                llm_request=prepared.llm_request,
+                sources=prepared.sources,
+                rag_service=rag_service,
+            )
+
+        return PreparedStreamRequest(
+            llm_request=build_chat_llm_request(request, include_tools=True),
+            sources=[],
+        )
+
     def _direct_chat(self, request: ChatRequest) -> ChatResponse:
         llm_response = self._llm_provider.generate_response(self._build_llm_request(request))
         return ChatResponse(
@@ -52,6 +79,17 @@ class ChatService:
         )
 
     def _resolve_rag_service(self, request: ChatRequest) -> RAGService:
+        if request.document_ids:
+            if request.rag_options is None:
+                raise ValueError(
+                    "RAG options must be resolved from attached documents before chat."
+                )
+            return build_rag_service(
+                request.rag_options,
+                self._llm_provider,
+                self._context_builder,
+            )
+
         rag_options = request.rag_options
         if rag_options is None:
             return self._default_rag_service

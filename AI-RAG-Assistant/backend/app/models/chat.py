@@ -1,3 +1,6 @@
+import uuid
+from datetime import datetime
+
 from pydantic import BaseModel, Field, field_validator
 
 from llm_sdk.enums import MessageRole, ProviderType
@@ -32,8 +35,9 @@ class ChatMessage(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    guest_id: str
+    guest_id: str | None = None
     messages: list[ChatMessage]
+    chat_id: uuid.UUID | None = None
     provider: ProviderType | None = None
     model: str | None = None
     # IDs of documents (from POST /documents/upload) that trigger RAG-backed chat.
@@ -50,3 +54,39 @@ class ChatResponse(BaseModel):
     response: str
     warning: str | None = None
     sources: list[ContextSource] = Field(default_factory=list)
+    chat_id: uuid.UUID | None = None
+
+
+class ChatCreateRequest(BaseModel):
+    guest_id: str | None = None
+    provider: str
+    title: str | None = None
+
+
+class ChatSummary(BaseModel):
+    id: uuid.UUID
+    guest_id: str | None = None
+    user_id: uuid.UUID | None = None
+    provider: str | None = None
+    title: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ChatListResponse(BaseModel):
+    chats: list[ChatSummary]
+
+
+class PersistedMessage(BaseModel):
+    id: uuid.UUID
+    chat_id: uuid.UUID
+    role: str
+    content: str
+    provider: str | None = None
+    model: str | None = None
+    created_at: datetime
+
+
+class ChatMessagesResponse(BaseModel):
+    chat_id: uuid.UUID
+    messages: list[PersistedMessage]

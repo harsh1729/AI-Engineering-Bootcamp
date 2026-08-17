@@ -1,94 +1,89 @@
 import uuid
 from io import BytesIO
-from unittest.mock import patch
 
 import pytest
 from fastapi import UploadFile
 
-from app.models.document import DocumentMetadata
+from app.config import DOCUMENT_CONTENT_TYPE_IMAGE, DOCUMENT_CONTENT_TYPE_TEXT
 from app.services import document_storage
 from app.services.document_exceptions import DocumentNotFoundError
 from app.services.document_storage import (
-    get_document_metadata,
-    save_uploaded_document,
+    resolve_document_path,
+    save_uploaded_file,
 )
 
 
 @pytest.fixture
-def storage_dirs(tmp_path, monkeypatch):
+def documents_dir(tmp_path, monkeypatch):
     documents_dir = tmp_path / "files"
-    metadata_dir = tmp_path / "metadata"
     monkeypatch.setattr(document_storage, "DOCUMENTS_DIR", documents_dir)
-    monkeypatch.setattr(document_storage, "METADATA_DIR", metadata_dir)
-    return documents_dir, metadata_dir
+    return documents_dir
+
+
+@pytest.fixture
+def images_dir(tmp_path, monkeypatch):
+    images_dir = tmp_path / "images"
+    monkeypatch.setattr(document_storage, "IMAGES_DIR", images_dir)
+    return images_dir
 
 
 def _upload(filename: str, content: bytes = b"hello world") -> UploadFile:
     return UploadFile(filename=filename, file=BytesIO(content))
 
 
-class TestSaveUploadedDocumentMetadata:
+class TestSaveUploadedDocument:
     def test_duplicate_original_filenames_get_unique_storage_names(
-        self, storage_dirs
+        self, documents_dir
     ) -> None:
-        documents_dir, _ = storage_dirs
-
-        first_id = save_uploaded_document(_upload("handbook.pdf", b"first"))
-        second_id = save_uploaded_document(_upload("handbook.pdf", b"second"))
+        first_id, _ = save_uploaded_file(_upload("handbook.pdf", b"first"))
+        second_id, _ = save_uploaded_file(_upload("handbook.pdf", b"second"))
 
         assert first_id != second_id
-        first_metadata = get_document_metadata(first_id)
-        second_metadata = get_document_metadata(second_id)
+        assert (documents_dir / f"{first_id}.pdf").is_file()
+        assert (documents_dir / f"{second_id}.pdf").is_file()
+        assert (documents_dir / f"{first_id}.pdf").read_bytes() == b"first"
+        assert (documents_dir / f"{second_id}.pdf").read_bytes() == b"second"
 
-        assert first_metadata.original_filename == "handbook.pdf"
-        assert second_metadata.original_filename == "handbook.pdf"
-        assert first_metadata.stored_filename == f"{first_id}.pdf"
-        assert second_metadata.stored_filename == f"{second_id}.pdf"
-        assert first_metadata.stored_filename != second_metadata.stored_filename
-        assert (documents_dir / first_metadata.stored_filename).is_file()
-        assert (documents_dir / second_metadata.stored_filename).is_file()
+    def test_save_uses_basename_extension_for_stored_file(self, documents_dir) -> None:
+        document_id, content_type = save_uploaded_file(_upload("../../etc/handbook.pdf"))
 
-    def test_metadata_uses_basename_only_for_original_filename(
-        self, storage_dirs
-    ) -> None:
-        document_id = save_uploaded_document(_upload("../../etc/handbook.pdf"))
+        stored_path = documents_dir / f"{document_id}.pdf"
+        assert content_type == DOCUMENT_CONTENT_TYPE_TEXT
+        assert stored_path.is_file()
 
-        metadata = get_document_metadata(document_id)
+    def test_resolve_document_path_finds_uploaded_file(self, documents_dir) -> None:
+        document_id, _ = save_uploaded_file(_upload("notes.txt", b"content"))
 
-        assert metadata.original_filename == "handbook.pdf"
+        resolved = resolve_document_path(document_id)
 
-    def test_metadata_survives_retrieval_by_document_id(
-        self, storage_dirs
-    ) -> None:
-        document_id = save_uploaded_document(_upload("notes.txt", b"content"))
+        assert resolved == documents_dir / f"{document_id}.txt"
+        assert resolved.read_text(encoding="utf-8") == "content"
 
-        metadata = get_document_metadata(document_id)
-
-        assert metadata == DocumentMetadata(
-            document_id=document_id,
-            original_filename="notes.txt",
-            stored_filename=f"{document_id}.txt",
-        )
-
-    def test_get_document_metadata_rejects_invalid_document_id(
-        self, storage_dirs
+    def test_resolve_document_path_rejects_invalid_document_id(
+        self, documents_dir
     ) -> None:
         with pytest.raises(DocumentNotFoundError):
-            get_document_metadata("../bad-id")
+            resolve_document_path("../bad-id")
 
-    def test_metadata_persistence_failure_removes_uploaded_file(
-        self, storage_dirs
-    ) -> None:
-        documents_dir, _ = storage_dirs
-        document_id = str(uuid.uuid4())
+    def test_save_returns_valid_uuid(self, documents_dir) -> None:
+        document_id, _ = save_uploaded_file(_upload("notes.txt"))
 
-        with patch.object(
-            document_storage,
-            "_persist_metadata",
-            side_effect=OSError("metadata write failed"),
-        ):
-            with patch.object(document_storage.uuid, "uuid4", return_value=uuid.UUID(document_id)):
-                with pytest.raises(OSError, match="metadata write failed"):
-                    save_uploaded_document(_upload("notes.txt"))
+        parsed = uuid.UUID(document_id)
+        assert str(parsed) == document_id
 
-        assert not (documents_dir / f"{document_id}.txt").exists()
+
+class TestSaveUploadedImage:
+    def test_save_image_to_images_dir(self, images_dir) -> None:
+        document_id, content_type = save_uploaded_file(_upload("scan.png", b"png-bytes"))
+
+        assert content_type == DOCUMENT_CONTENT_TYPE_IMAGE
+        stored_path = images_dir / f"{document_id}.png"
+        assert stored_path.is_file()
+        assert stored_path.read_bytes() == b"png-bytes"
+
+    def test_resolve_document_path_finds_image_upload(self, images_dir) -> None:
+        document_id, _ = save_uploaded_file(_upload("photo.jpg", b"jpeg-bytes"))
+
+        resolved = resolve_document_path(document_id)
+
+        assert resolved == images_dir / f"{document_id}.jpg"

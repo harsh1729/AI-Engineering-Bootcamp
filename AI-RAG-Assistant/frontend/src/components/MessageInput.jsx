@@ -1,5 +1,6 @@
 import { useState } from "react";
 import DocumentUpload from "./DocumentUpload";
+import NewChatButton from "./NewChatButton";
 
 function SendArrowIcon() {
   return (
@@ -25,6 +26,7 @@ function SendArrowIcon() {
 
 export default function MessageInput({
   onSend,
+  onStartNewChat,
   disabled,
   loadingLabel = "Thinking...",
   ragOptions,
@@ -32,7 +34,6 @@ export default function MessageInput({
 }) {
   const [value, setValue] = useState("");
   const [attachments, setAttachments] = useState([]);
-  // [{ documentId, filename, indexedChunkCount?, ragOptions }]
 
   const canSend = value.trim().length > 0 && !disabled;
   const isLoading = disabled && value.trim().length > 0;
@@ -40,10 +41,13 @@ export default function MessageInput({
   const updateAttachments = (updater) => {
     setAttachments((prev) => {
       const next = typeof updater === "function" ? updater(prev) : updater;
-      onAttachmentsChange?.(next.length > 0);
+      onAttachmentsChange?.(next.length > 0, next);
       return next;
     });
   };
+
+  const uploadRagOptions =
+    attachments.length > 0 ? attachments[0].ragOptions ?? ragOptions : ragOptions;
 
   const handleSend = () => {
     const trimmed = value.trim();
@@ -136,25 +140,29 @@ export default function MessageInput({
           />
         </div>
 
-        <button
-          type="button"
-          className="message-input-send"
-          onClick={handleSend}
-          disabled={!canSend}
-          aria-label={isLoading ? loadingLabel : "Send message"}
-        >
-          {isLoading ? (
-            <span className="message-input-send-spinner" aria-hidden="true" />
-          ) : (
-            <SendArrowIcon />
-          )}
-        </button>
+        <div className="message-input-actions">
+          <button
+            type="button"
+            className="message-input-send"
+            onClick={handleSend}
+            disabled={!canSend}
+            aria-label={isLoading ? loadingLabel : "Send message"}
+          >
+            {isLoading ? (
+              <span className="message-input-send-spinner" aria-hidden="true" />
+            ) : (
+              <SendArrowIcon />
+            )}
+          </button>
 
-        <DocumentUpload
-          attachmentCount={attachments.length}
-          ragOptions={ragOptions}
-          onUploaded={handleAttachmentUploaded}
-        />
+          <DocumentUpload
+            attachmentCount={attachments.length}
+            ragOptions={uploadRagOptions}
+            onUploaded={handleAttachmentUploaded}
+          />
+
+          <NewChatButton onStartNewChat={onStartNewChat} disabled={disabled} />
+        </div>
       </div>
     </div>
   );

@@ -108,7 +108,10 @@ class TestDocumentIngestionServiceIndexDocument:
 
         result = ingestion_service.index_document(DOCUMENT_ID)
 
-        document_parser.parse.assert_called_once_with(DOCUMENT_ID)
+        document_parser.parse.assert_called_once_with(
+            DOCUMENT_ID,
+            original_filename=None,
+        )
         chunking_service.chunk_document.assert_called_once_with(parsed)
         embedding_service.embed_batch.assert_called_once_with(
             ["First chunk text.", "Second chunk text."]

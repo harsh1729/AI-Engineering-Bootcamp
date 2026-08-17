@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { uploadDocument } from "../api/documentApi";
-import { MAX_ATTACHMENTS, MAX_DOCUMENT_SIZE_BYTES, MAX_DOCUMENT_SIZE_MB } from "../constants/attachments";
+import { useAuth } from "../context/AuthContext";
+import {
+  MAX_ATTACHMENTS,
+  MAX_DOCUMENT_SIZE_BYTES,
+  MAX_DOCUMENT_SIZE_MB,
+  MAX_IMAGE_SIZE_BYTES,
+  MAX_IMAGE_SIZE_MB,
+} from "../constants/attachments";
 import spinnerIcon from "../assets/spinner.svg";
 
 // Keep in sync with backend app.config.ALLOWED_DOCUMENT_EXTENSIONS
@@ -11,12 +18,42 @@ const ACCEPTED_FILE_TYPES =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet," +
   "application/vnd.openxmlformats-officedocument.presentationml.presentation," +
   "application/rtf,text/rtf";
-const ACCEPTED_PHOTO_TYPES = "image/*";
-const PHOTO_UPLOAD_UNSUPPORTED_MESSAGE =
-  "Photo upload isn't supported yet. Use Files to attach PDF, Word, or text documents.";
+// Keep in sync with backend app.config.ALLOWED_IMAGE_EXTENSIONS
+const ACCEPTED_PHOTO_TYPES = "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
 const ERROR_MESSAGE_DURATION_MS = 6000;
 
+function PaperclipIcon() {
+  return (
+    <svg
+      className="document-upload-trigger-icon"
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M8.5 12.5L14.2 6.8C15.6 5.4 17.8 5.4 19.2 6.8C20.6 8.2 20.6 10.4 19.2 11.8L11.8 19.2C9.7 21.3 6.3 21.3 4.2 19.2C2.1 17.1 2.1 13.7 4.2 11.6L12.5 3.3"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function isImageUpload(file) {
+  if (!file) return false;
+  if (file.type.startsWith("image/")) return true;
+  const extension = file.name.includes(".")
+    ? file.name.slice(file.name.lastIndexOf(".")).toLowerCase()
+    : "";
+  return [".jpg", ".jpeg", ".png", ".webp"].includes(extension);
+}
+
 function DocumentUpload({ attachmentCount, onUploaded, ragOptions }) {
+  const { user } = useAuth();
   const containerRef = useRef(null);
   const fileInputRef = useRef(null);
   const photoInputRef = useRef(null);
@@ -80,14 +117,17 @@ function DocumentUpload({ attachmentCount, onUploaded, ragOptions }) {
     setIsMenuOpen((open) => !open);
   };
 
-  const handleFileChange = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
+  const handleUpload = async (file) => {
     if (!file || atLimit) return;
 
-    if (file.size > MAX_DOCUMENT_SIZE_BYTES) {
+    const imageUpload = isImageUpload(file);
+    const maxBytes = imageUpload ? MAX_IMAGE_SIZE_BYTES : MAX_DOCUMENT_SIZE_BYTES;
+    const maxMb = imageUpload ? MAX_IMAGE_SIZE_MB : MAX_DOCUMENT_SIZE_MB;
+    const sizeLabel = imageUpload ? "image" : "document";
+
+    if (file.size > maxBytes) {
       setStatus("error");
-      setErrorMessage(`Maximum document size is ${MAX_DOCUMENT_SIZE_MB} MB.`);
+      setErrorMessage(`Maximum ${sizeLabel} size is ${maxMb} MB.`);
       return;
     }
 
@@ -95,12 +135,15 @@ function DocumentUpload({ attachmentCount, onUploaded, ragOptions }) {
     setErrorMessage("");
 
     try {
-      const result = await uploadDocument(file, ragOptions);
+      const result = await uploadDocument(file, ragOptions, {
+        useAuth: Boolean(user),
+      });
       onUploaded({
         documentId: result.document_id,
         filename: result.filename,
         indexedChunkCount: result.indexed_chunk_count,
         ragOptions: ragOptions ? { ...ragOptions } : null,
+        contentType: imageUpload ? "image" : "text",
       });
       setStatus("idle");
     } catch (error) {
@@ -109,13 +152,16 @@ function DocumentUpload({ attachmentCount, onUploaded, ragOptions }) {
     }
   };
 
-  const handlePhotoChange = (event) => {
+  const handleFileChange = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file) return;
+    await handleUpload(file);
+  };
 
-    setStatus("error");
-    setErrorMessage(PHOTO_UPLOAD_UNSUPPORTED_MESSAGE);
+  const handlePhotoChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    await handleUpload(file);
   };
 
   return (
@@ -138,17 +184,17 @@ function DocumentUpload({ attachmentCount, onUploaded, ragOptions }) {
 
       <button
         type="button"
-        className="document-upload-trigger"
+        className="message-input-action document-upload-trigger"
         onClick={handleTriggerClick}
         disabled={status === "uploading" || atLimit}
-        aria-label="Upload document"
+        aria-label="Attach document"
         aria-expanded={isMenuOpen}
-        title={atLimit ? `You can attach up to ${MAX_ATTACHMENTS} files` : "Upload document"}
+        title={atLimit ? `You can attach up to ${MAX_ATTACHMENTS} files` : "Attach document"}
       >
         {status === "uploading" ? (
           <img src={spinnerIcon} alt="" className="document-upload-spinner" />
         ) : (
-          "+"
+          <PaperclipIcon />
         )}
       </button>
 

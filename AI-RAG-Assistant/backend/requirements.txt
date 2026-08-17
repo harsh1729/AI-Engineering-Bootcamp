@@ -5,7 +5,7 @@ click==8.4.2
 fastapi==0.139.1
 h11==0.16.0
 idna==3.18
-pydantic==2.13.4
+email-validator>=2.0,<3
 pydantic_core==2.46.4
 python-dotenv==1.2.2
 python-multipart==0.0.20
@@ -19,7 +19,17 @@ typing-inspection==0.4.2
 typing_extensions==4.16.0
 uvicorn==0.51.0
 pytest==8.4.2
+pytest-asyncio>=0.24,<1
 openai==2.44.0
 voyageai==0.5.0
 cohere==7.0.8
+Pillow>=10.0,<12
+pytesseract>=0.3.13,<1
 chromadb==1.5.9
+pinecone>=6.0,<9
+sqlalchemy[asyncio]>=2.0,<3
+asyncpg>=0.29,<1
+alembic>=1.13,<2
+greenlet>=3.0,<4
+bcrypt>=4.0,<5
+python-jose[cryptography]>=3.3,<4

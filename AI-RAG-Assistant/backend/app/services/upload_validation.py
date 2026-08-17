@@ -10,30 +10,29 @@ from pathlib import Path
 from fastapi import UploadFile
 
 from app.config import (
-    ALLOWED_DOCUMENT_EXTENSIONS,
+    DOCUMENT_CONTENT_TYPE_IMAGE,
     MAX_DOCUMENT_SIZE_BYTES,
     MAX_DOCUMENT_SIZE_MB,
+    MAX_IMAGE_SIZE_BYTES,
+    MAX_IMAGE_SIZE_MB,
 )
 from app.services.document_exceptions import DocumentTooLargeError
-from app.services.document_storage import UnsupportedDocumentType
+from app.services.document_storage import UnsupportedDocumentType, classify_upload_extension
 
 
-def validate_upload_extension(filename: str | None) -> str:
-    """Raises UnsupportedDocumentType when the extension is not allowed."""
-    extension = Path(filename or "").suffix.lower()
+def validate_upload_extension(filename: str | None) -> tuple[str, str]:
+    """Raises UnsupportedDocumentType when the extension is not allowed.
 
-    if extension not in ALLOWED_DOCUMENT_EXTENSIONS:
-        allowed = ", ".join(sorted(ALLOWED_DOCUMENT_EXTENSIONS))
-        raise UnsupportedDocumentType(
-            f"Unsupported file type '{extension or 'unknown'}'. Allowed types: {allowed}."
-        )
-
-    return extension
+    Returns (extension, content_type).
+    """
+    try:
+        return classify_upload_extension(filename or "")
+    except UnsupportedDocumentType:
+        raise
 
 
-def enforce_upload_size_limit(file: UploadFile) -> None:
-    """Rejects uploads larger than MAX_DOCUMENT_SIZE_BYTES without buffering
-    the whole body into memory.
+def enforce_upload_size_limit(file: UploadFile, *, content_type: str) -> None:
+    """Rejects uploads larger than the content-type size limit.
 
     Starlette buffers multipart parts in a seekable SpooledTemporaryFile, so
     we measure size via seek/tell and rewind before the caller saves.
@@ -44,7 +43,15 @@ def enforce_upload_size_limit(file: UploadFile) -> None:
     size = stream.tell()
     stream.seek(current)
 
-    if size > MAX_DOCUMENT_SIZE_BYTES:
+    if content_type == DOCUMENT_CONTENT_TYPE_IMAGE:
+        max_bytes = MAX_IMAGE_SIZE_BYTES
+        max_mb = MAX_IMAGE_SIZE_MB
+    else:
+        max_bytes = MAX_DOCUMENT_SIZE_BYTES
+        max_mb = MAX_DOCUMENT_SIZE_MB
+
+    if size > max_bytes:
+        label = "image" if content_type == DOCUMENT_CONTENT_TYPE_IMAGE else "document"
         raise DocumentTooLargeError(
-            f"Maximum document size is {MAX_DOCUMENT_SIZE_MB} MB."
+            f"Maximum {label} size is {max_mb} MB."
         )

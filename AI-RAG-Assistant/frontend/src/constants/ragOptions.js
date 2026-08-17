@@ -17,4 +17,7 @@ export const EMBEDDING_PROVIDERS = [
   { value: "cohere", label: "Cohere" },
 ];
 
-export const VECTOR_STORES = [{ value: "chroma", label: "Chroma" }];
+export const VECTOR_STORES = [
+  { value: "chroma", label: "Chroma" },
+  { value: "pinecone", label: "Pinecone" },
+];

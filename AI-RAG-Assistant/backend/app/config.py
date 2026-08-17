@@ -11,18 +11,55 @@ load_dotenv(BACKEND_ROOT / ".env")
 
 # Maximum number of user messages a single guest may send during the demo.
 # Enforced by app.services.usage_tracker.
-MAX_DEMO_INTERACTIONS = 20
+MAX_DEMO_INTERACTIONS = 50
+
+# Maximum messages for a logged-in user (shared across all LLM providers).
+LOGGED_IN_USER_INTERACTIONS = 10 * MAX_DEMO_INTERACTIONS
+
+# Shown when a guest exhausts MAX_DEMO_INTERACTIONS (shared across all LLM providers).
+GUEST_USAGE_LIMIT_MESSAGE = (
+    "Guest user limit reached. Register for more messages."
+)
+
+# Shown when a logged-in user exhausts LOGGED_IN_USER_INTERACTIONS.
+LOGGED_IN_USER_USAGE_LIMIT_MESSAGE = (
+    "Account message limit reached. Please contact support."
+)
+
+ACCOUNT_PENDING_APPROVAL_MESSAGE = (
+    "Your account is pending approval. Please try again later."
+)
+
+ACCOUNT_DISABLED_MESSAGE = (
+    "Your account has been disabled. Please contact an administrator."
+)
+
+REGISTRATION_PENDING_MESSAGE = (
+    "Registration successful. Your account is pending admin approval."
+)
+
+# JWT auth (set JWT_SECRET_KEY in production).
+JWT_SECRET_KEY = os.getenv(
+    "JWT_SECRET_KEY",
+    "dev-only-change-me-in-production",
+)
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", str(60 * 24 * 7)))
 
 # Maximum size of a single uploaded document. Enforced by the upload endpoint
 # before the file is written to disk (and mirrored client-side for UX).
 MAX_DOCUMENT_SIZE_MB = 15
 MAX_DOCUMENT_SIZE_BYTES = MAX_DOCUMENT_SIZE_MB * 1024 * 1024
 
+# Maximum size of a single uploaded image (OCR path). Documents use MAX_DOCUMENT_SIZE_MB.
+MAX_IMAGE_SIZE_MB = int(os.getenv("MAX_IMAGE_SIZE_MB", "10"))
+MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024
+
 UPLOAD_DIR = BACKEND_ROOT / "uploads"
 
 # uploads/ is a root with purpose-specific subfolders:
-# - files/  finalized document uploads (used today by document_storage).
-# - images/ reserved for a future image-upload feature (not wired up yet).
+# - files/  text document uploads (PDF, DOCX, etc.).
+# - images/ OCR-indexed image uploads (JPG, PNG, WEBP).
 # - temp/   reserved for future staged/in-progress uploads (not wired up yet).
 DOCUMENTS_DIR = UPLOAD_DIR / "files"
 METADATA_DIR = UPLOAD_DIR / "metadata"
@@ -39,6 +76,20 @@ ALLOWED_DOCUMENT_EXTENSIONS = {
     ".pptx",
     ".rtf",
 }
+
+# Image uploads (OCR via app.services.parsers.image_parser).
+ALLOWED_IMAGE_EXTENSIONS = {
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+}
+
+ALLOWED_UPLOAD_EXTENSIONS = ALLOWED_DOCUMENT_EXTENSIONS | ALLOWED_IMAGE_EXTENSIONS
+
+# Document vs image content types persisted on the documents table.
+DOCUMENT_CONTENT_TYPE_TEXT = "text"
+DOCUMENT_CONTENT_TYPE_IMAGE = "image"
 
 # Embedding configuration
 EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "openai").lower()
@@ -99,6 +150,83 @@ CHROMA_PERSIST_DIR = (
 )
 CHROMA_COLLECTION_NAME = os.getenv("CHROMA_COLLECTION_NAME", "document_chunks")
 
+# Pinecone vector store (app.vector_store.pinecone_vector_store).
+# One index per embedding provider (dimensions must match the provider's vectors).
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+PINECONE_NAMESPACE = os.getenv("PINECONE_NAMESPACE", "")
+
+DEFAULT_EMBEDDING_DIMENSIONS = {
+    "openai": 1536,
+    "voyage": 1024,
+    "cohere": 1536,
+}
+
+
+def _int_env(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    return int(raw)
+
+
+_legacy_pinecone_index = os.getenv("PINECONE_INDEX_NAME")
+PINECONE_INDEX_OPENAI = (
+    os.getenv("PINECONE_INDEX_OPENAI") or _legacy_pinecone_index or "ai-rag-openai-1536"
+)
+PINECONE_INDEX_VOYAGE = os.getenv("PINECONE_INDEX_VOYAGE", "ai-rag-voyage-1024")
+PINECONE_INDEX_COHERE = os.getenv("PINECONE_INDEX_COHERE", "ai-rag-cohere-1536")
+
+# Backward-compatible alias for OpenAI index name.
+PINECONE_INDEX_NAME = PINECONE_INDEX_OPENAI
+
+PINECONE_DIMENSION_OPENAI = _int_env("PINECONE_DIMENSION_OPENAI", 1536)
+PINECONE_DIMENSION_VOYAGE = _int_env("PINECONE_DIMENSION_VOYAGE", 1024)
+PINECONE_DIMENSION_COHERE = _int_env("PINECONE_DIMENSION_COHERE", 1536)
+
+PINECONE_INDEX_BY_PROVIDER: dict[str, str] = {
+    "openai": PINECONE_INDEX_OPENAI,
+    "voyage": PINECONE_INDEX_VOYAGE,
+    "cohere": PINECONE_INDEX_COHERE,
+}
+
+PINECONE_DIMENSION_BY_PROVIDER: dict[str, int] = {
+    "openai": PINECONE_DIMENSION_OPENAI,
+    "voyage": PINECONE_DIMENSION_VOYAGE,
+    "cohere": PINECONE_DIMENSION_COHERE,
+}
+
+
+def resolve_pinecone_index(embedding_provider: str) -> str:
+    """Return the Pinecone index name for an embedding provider."""
+    index = PINECONE_INDEX_BY_PROVIDER.get(embedding_provider)
+    if not index:
+        raise ValueError(
+            f"No Pinecone index configured for embedding provider '{embedding_provider}'."
+        )
+    return index
+
+
+def resolve_pinecone_dimension(embedding_provider: str) -> int:
+    """Return the expected vector dimension for an embedding provider's Pinecone index."""
+    dimension = PINECONE_DIMENSION_BY_PROVIDER.get(embedding_provider)
+    if dimension is None:
+        raise ValueError(
+            "No Pinecone dimension configured for embedding provider "
+            f"'{embedding_provider}'."
+        )
+    return dimension
+
+
+def pinecone_indexes_catalog() -> dict[str, dict[str, int | str]]:
+    """Return embedding_provider -> {index_name, dimension} for API consumers."""
+    return {
+        provider: {
+            "index_name": PINECONE_INDEX_BY_PROVIDER[provider],
+            "dimension": PINECONE_DIMENSION_BY_PROVIDER[provider],
+        }
+        for provider in PINECONE_INDEX_BY_PROVIDER
+    }
+
 # Temporary flags for structured pipeline logging during development.
 # Set RAG_DEBUG=true or CHUNKING_DEBUG=true in .env.
 RAG_DEBUG = os.getenv("RAG_DEBUG", "false").lower() in ("true", "1", "yes")
@@ -107,3 +235,10 @@ CHUNKING_DEBUG = os.getenv("CHUNKING_DEBUG", "false").lower() in ("true", "1", "
 # Default chunk size for document splitting. Table blocks use 2x this limit.
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1500"))
 CHUNK_OVERLAP = CHUNK_SIZE // 5
+
+# PostgreSQL (async SQLAlchemy + asyncpg).
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+asyncpg://postgres:password@localhost:5432/ai_rag_assistant",
+)
+DATABASE_ECHO = os.getenv("DATABASE_ECHO", "false").lower() in ("true", "1", "yes")

@@ -1,8 +1,15 @@
-const UPLOAD_ENDPOINT = "http://127.0.0.1:8000/documents/upload";
+import { getGuestId } from "../utils/guestId";
+import { API_BASE_URL, buildAuthHeaders, fetchJson } from "./apiClient";
 
 async function readErrorMessage(response) {
   const data = await response.json().catch(() => null);
   return data?.detail || "Upload failed. Please try again.";
+}
+
+function buildDocumentParams() {
+  const params = new URLSearchParams();
+  params.set("guest_id", getGuestId());
+  return params;
 }
 
 /**
@@ -11,25 +18,24 @@ async function readErrorMessage(response) {
  * header manually - the browser generates the multipart boundary itself when
  * given a FormData body.
  */
-export async function uploadDocument(file, ragOptions = null) {
+export async function uploadDocument(file, ragOptions = null, { useAuth = true } = {}) {
   const formData = new FormData();
   formData.append("file", file);
+  formData.append("guest_id", getGuestId());
   if (ragOptions) {
     formData.append("rag_options", JSON.stringify(ragOptions));
   }
 
   const controller = new AbortController();
-  // Prevent the + button from spinning forever if the backend is down/hung.
-  // Ingestion (parse, chunk, embed) runs during upload and can take longer than a
-  // plain file transfer, so allow a generous timeout.
   const timeoutId = setTimeout(() => controller.abort(), 120_000);
 
   let response;
 
   try {
-    response = await fetch(UPLOAD_ENDPOINT, {
+    response = await fetch(`${API_BASE_URL}/documents/upload`, {
       method: "POST",
       body: formData,
+      headers: useAuth ? buildAuthHeaders() : {},
       signal: controller.signal,
     });
   } catch (error) {
@@ -46,4 +52,11 @@ export async function uploadDocument(file, ragOptions = null) {
   }
 
   return response.json();
+}
+
+export async function listDocuments({ useAuth = true } = {}) {
+  const params = buildDocumentParams();
+  return fetchJson(`${API_BASE_URL}/documents?${params.toString()}`, {
+    skipAuth: !useAuth,
+  });
 }

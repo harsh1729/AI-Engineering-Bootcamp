@@ -12,6 +12,11 @@
   flex-direction: column;
 }
 
+.app-main > .approve-users-page {
+  flex: 1;
+  min-height: 0;
+}
+
 @media (max-width: 720px) {
   .app-layout {
     flex-direction: column;

@@ -48,10 +48,14 @@ class DocumentIngestionService:
         document_id: str,
         *,
         chunking_strategy: str | None = None,
+        original_filename: str | None = None,
     ) -> DocumentIndexingResult:
         """Parse, chunk, embed, and store one uploaded document."""
         logger.info("Parsing document document_id=%s", document_id)
-        parsed_document = self._document_parser.parse(document_id)
+        parsed_document = self._document_parser.parse(
+            document_id,
+            original_filename=original_filename,
+        )
         _warn_header_strategy_mismatch(parsed_document, chunking_strategy)
         chunks = self._chunking_service.chunk_document(parsed_document)
         logger.info(

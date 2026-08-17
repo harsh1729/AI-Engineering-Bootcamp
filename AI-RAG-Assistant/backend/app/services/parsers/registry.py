@@ -1,6 +1,7 @@
 from app.services.document_exceptions import UnsupportedDocumentTypeError
 from app.services.parsers.base import BaseDocumentParser
 from app.services.parsers.excel_parser import XlsxParser
+from app.services.parsers.image_parser import ImageParser
 from app.services.parsers.legacy_parser import UnsupportedLegacyParser
 from app.services.parsers.pdf_parser import PdfParser
 from app.services.parsers.powerpoint_parser import PptxParser
@@ -24,6 +25,10 @@ class DocumentParserRegistry:
             ".xlsx": XlsxParser(),
             ".pptx": PptxParser(),
             ".rtf": RtfParser(),
+            ".jpg": ImageParser(),
+            ".jpeg": ImageParser(),
+            ".png": ImageParser(),
+            ".webp": ImageParser(),
             # Legacy binary Office formats: registered so callers get a clear
             # UnsupportedDocumentTypeError instead of a generic "unknown type".
             ".doc": UnsupportedLegacyParser(".doc", "Microsoft Word 97-2003"),

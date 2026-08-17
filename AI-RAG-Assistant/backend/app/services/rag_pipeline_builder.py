@@ -10,7 +10,6 @@ from app.models.rag_config import (
     VectorStoreType,
 )
 from app.context.context_builder import ContextBuilder
-from app.models.rag_config import RagOptions
 from app.retrieval.retrieval_service import RetrievalService
 from app.retrieval.similarity_retriever import SimilarityRetriever
 from app.services.document_ingestion import DocumentIngestionService
@@ -21,8 +20,14 @@ from llm_sdk.providers.llm_provider import LLMProvider
 
 
 @lru_cache
-def _get_shared_vector_store(store_type: VectorStoreType) -> BaseVectorStore:
-    return VectorStoreFactory.create(store_type)
+def _get_shared_vector_store(
+    store_type: VectorStoreType,
+    embedding_provider: EmbeddingProviderType,
+) -> BaseVectorStore:
+    return VectorStoreFactory.create(
+        store_type,
+        embedding_provider=embedding_provider,
+    )
 
 
 @lru_cache
@@ -41,7 +46,10 @@ def build_document_ingestion_service(rag_options: RagOptions) -> DocumentIngesti
         document_parser=document_parser,
         chunking_service=_get_shared_chunking_service(rag_options.chunking_strategy),
         embedding_service=_get_shared_embedding_service(rag_options.embedding_provider),
-        vector_store=_get_shared_vector_store(rag_options.vector_store),
+        vector_store=_get_shared_vector_store(
+            rag_options.vector_store,
+            rag_options.embedding_provider,
+        ),
     )
 
 
@@ -50,7 +58,10 @@ def build_retrieval_service(rag_options: RagOptions) -> RetrievalService:
     return RetrievalService(
         SimilarityRetriever(
             embedding_service=_get_shared_embedding_service(rag_options.embedding_provider),
-            vector_store=_get_shared_vector_store(rag_options.vector_store),
+            vector_store=_get_shared_vector_store(
+                rag_options.vector_store,
+                rag_options.embedding_provider,
+            ),
         )
     )
 

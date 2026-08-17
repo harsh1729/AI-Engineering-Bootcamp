@@ -24,3 +24,7 @@ class DocumentParsingError(DocumentServiceError):
 
 class DocumentIngestionError(DocumentServiceError):
     """Raised when ingestion cannot pair chunks with embedding results."""
+
+
+class PineconeDimensionMismatchError(DocumentServiceError):
+    """Raised when embedding vector dimension does not match the Pinecone index."""

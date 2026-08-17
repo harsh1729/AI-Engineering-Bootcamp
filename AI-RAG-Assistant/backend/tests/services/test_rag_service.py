@@ -298,3 +298,60 @@ class TestRAGServiceAsk:
         response = rag_service.ask(RAGRequest(query="How much does it cost?"))
 
         assert response.sources == sources
+
+
+class TestRAGServicePrepare:
+    def test_prepare_returns_llm_request_and_sources(
+        self,
+        rag_service: RAGService,
+        retrieval_service: MagicMock,
+        context_builder: MagicMock,
+    ) -> None:
+        chunk = _retrieved_chunk(
+            chunk_id="chunk-1",
+            text="Refunds are available within 30 days.",
+            source_filename="handbook.pdf",
+        )
+        context_prompt = _context_prompt(
+            context="[1]\nRefunds are available within 30 days.",
+            query="What is the refund policy?",
+        )
+        retrieval_service.retrieve.return_value = RetrievalResponse(chunks=[chunk])
+        context_builder.build_prompt.return_value = context_prompt
+
+        prepared = rag_service.prepare(
+            RAGRequest(
+                query="What is the refund policy?",
+                document_ids=[DOCUMENT_ID],
+                provider=ProviderType.OPENAI,
+                model="gpt-4o-mini",
+            )
+        )
+
+        assert prepared.llm_request.messages[0].content == context_prompt.system_content
+        assert prepared.llm_request.messages[1].content == context_prompt.user_content
+        assert prepared.sources == context_prompt.sources
+
+
+class TestRAGServiceStreamAnswer:
+    def test_stream_answer_yields_provider_chunks(
+        self,
+        rag_service: RAGService,
+        llm_provider: MagicMock,
+    ) -> None:
+        from llm_sdk.models import LLMResponseChunk
+
+        llm_request = LLMRequest(
+            messages=[LLMMessage(role=MessageRole.USER, content="Hello")],
+            provider=ProviderType.OPENAI,
+            model="gpt-4o-mini",
+        )
+        llm_provider.generate_stream.return_value = [
+            LLMResponseChunk(text="Grounded "),
+            LLMResponseChunk(text="answer"),
+        ]
+
+        chunks = list(rag_service.stream_answer(llm_request))
+
+        assert chunks == ["Grounded ", "answer"]
+        llm_provider.generate_stream.assert_called_once_with(llm_request)

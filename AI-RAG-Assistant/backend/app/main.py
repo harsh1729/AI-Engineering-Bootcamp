@@ -3,7 +3,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import chat, documents, health
+from app.routers import admin, auth, chat, chats, documents, health
 
 # Without this, the root logger defaults to WARNING and any logger.info(...)
 # call anywhere in the app (e.g. chat.py's document_ids logging) is silently
@@ -20,5 +20,8 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(auth.router)
+app.include_router(admin.router)
 app.include_router(chat.router)
+app.include_router(chats.router)
 app.include_router(documents.router)
