@@ -69,10 +69,30 @@ class TestSharedVectorStore:
             VectorStoreType.PINECONE,
             EmbeddingProviderType.VOYAGE,
         )
+        pgvector_openai_a = _get_shared_vector_store(
+            VectorStoreType.PGVECTOR,
+            EmbeddingProviderType.OPENAI,
+        )
+        pgvector_openai_b = _get_shared_vector_store(
+            VectorStoreType.PGVECTOR,
+            EmbeddingProviderType.OPENAI,
+        )
+        qdrant_openai_a = _get_shared_vector_store(
+            VectorStoreType.QDRANT,
+            EmbeddingProviderType.OPENAI,
+        )
+        qdrant_openai_b = _get_shared_vector_store(
+            VectorStoreType.QDRANT,
+            EmbeddingProviderType.OPENAI,
+        )
 
         assert pinecone_openai_a is pinecone_openai_b
         assert pinecone_openai_a is not pinecone_voyage
-        assert len(created) == 2
+        assert pgvector_openai_a is pgvector_openai_b
+        assert pgvector_openai_a is not pinecone_openai_a
+        assert qdrant_openai_a is qdrant_openai_b
+        assert qdrant_openai_a is not pgvector_openai_a
+        assert len(created) == 4
 
     def test_build_document_ingestion_service_passes_embedding_provider_to_vector_store(
         self,

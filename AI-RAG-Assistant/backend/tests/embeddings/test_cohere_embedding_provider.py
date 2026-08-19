@@ -4,7 +4,10 @@ import pytest
 from cohere.core.api_error import ApiError as CohereApiError
 from cohere import TooManyRequestsError as CohereTooManyRequestsError
 
-from app.embeddings.cohere_embedding_provider import CohereEmbeddingProvider
+from app.embeddings.cohere_embedding_provider import (
+    COHERE_EMBED_BATCH_SIZE,
+    CohereEmbeddingProvider,
+)
 from app.embeddings.embedding_exceptions import EmbeddingProviderError, EmbeddingRateLimitError
 from app.embeddings.embedding_models import EmbeddingUsage
 
@@ -71,6 +74,32 @@ class TestCohereEmbeddingProviderEmbedBatch:
             embedding_types=["float"],
         )
         assert [vector.embedding for vector in batch.embeddings] == [[0.1], [0.2]]
+
+    def test_large_batch_is_split_into_chunks_of_ninety(
+        self, provider: CohereEmbeddingProvider, mock_client: MagicMock
+    ) -> None:
+        texts = [f"chunk-{index}" for index in range(COHERE_EMBED_BATCH_SIZE + 1)]
+        mock_client.embed.side_effect = [
+            _make_cohere_response(
+                embeddings=[[float(index)] for index in range(COHERE_EMBED_BATCH_SIZE)],
+                input_tokens=100,
+            ),
+            _make_cohere_response(
+                embeddings=[[float(COHERE_EMBED_BATCH_SIZE)]],
+                input_tokens=5,
+            ),
+        ]
+
+        batch = provider.embed_batch(texts)
+
+        assert mock_client.embed.call_count == 2
+        first_call_texts = mock_client.embed.call_args_list[0].kwargs["texts"]
+        second_call_texts = mock_client.embed.call_args_list[1].kwargs["texts"]
+        assert len(first_call_texts) == COHERE_EMBED_BATCH_SIZE
+        assert len(second_call_texts) == 1
+        assert len(batch.embeddings) == COHERE_EMBED_BATCH_SIZE + 1
+        assert batch.usage.prompt_tokens == 105
+        assert batch.usage.total_tokens == 105
 
     def test_empty_input_returns_synthetic_zero_usage_without_api_call(
         self, provider: CohereEmbeddingProvider, mock_client: MagicMock

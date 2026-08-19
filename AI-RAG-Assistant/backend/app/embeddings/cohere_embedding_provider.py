@@ -11,6 +11,9 @@ from app.embeddings.embedding_provider_utils import (
 )
 from app.models.rag_config import EmbeddingProviderType
 
+# Cohere allows up to 96 texts per embed request; stay below that for headroom.
+COHERE_EMBED_BATCH_SIZE = 90
+
 
 class CohereEmbeddingProvider(BaseEmbeddingProvider):
     """Embedding provider backed by the Cohere Embed API."""
@@ -46,6 +49,33 @@ class CohereEmbeddingProvider(BaseEmbeddingProvider):
         if not texts:
             return empty_batch_response()
 
+        all_embeddings: list[list[float]] = []
+        prompt_tokens = 0
+        total_tokens = 0
+
+        for start in range(0, len(texts), COHERE_EMBED_BATCH_SIZE):
+            batch_texts = texts[start : start + COHERE_EMBED_BATCH_SIZE]
+            batch_embeddings, batch_prompt_tokens, batch_total_tokens = self._call_embed(
+                batch_texts,
+                input_type=input_type,
+            )
+            all_embeddings.extend(batch_embeddings)
+            prompt_tokens += batch_prompt_tokens
+            total_tokens += batch_total_tokens
+
+        return build_batch_from_ordered_vectors(
+            all_embeddings,
+            model=self._model,
+            prompt_tokens=prompt_tokens,
+            total_tokens=total_tokens,
+        )
+
+    def _call_embed(
+        self,
+        texts: list[str],
+        *,
+        input_type: str,
+    ) -> tuple[list[list[float]], int, int]:
         try:
             response = self._client.embed(
                 model=self._model,
@@ -58,12 +88,7 @@ class CohereEmbeddingProvider(BaseEmbeddingProvider):
 
         float_embeddings = response.embeddings.float or []
         total_tokens = self._extract_total_tokens(response)
-        return build_batch_from_ordered_vectors(
-            float_embeddings,
-            model=self._model,
-            prompt_tokens=total_tokens,
-            total_tokens=total_tokens,
-        )
+        return float_embeddings, total_tokens, total_tokens
 
     def _extract_total_tokens(self, response) -> int:
         if response.meta and response.meta.billed_units:

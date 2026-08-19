@@ -11,6 +11,9 @@ from app.embeddings.embedding_provider_utils import (
 )
 from app.models.rag_config import EmbeddingProviderType
 
+# Voyage allows up to 1,000 texts per embed request; stay below for headroom.
+VOYAGE_EMBED_BATCH_SIZE = 500
+
 
 class VoyageEmbeddingProvider(BaseEmbeddingProvider):
     """Embedding provider backed by the Voyage AI Embeddings API."""
@@ -44,6 +47,33 @@ class VoyageEmbeddingProvider(BaseEmbeddingProvider):
         if not texts:
             return empty_batch_response()
 
+        all_embeddings: list[list[float]] = []
+        prompt_tokens = 0
+        total_tokens = 0
+
+        for start in range(0, len(texts), VOYAGE_EMBED_BATCH_SIZE):
+            batch_texts = texts[start : start + VOYAGE_EMBED_BATCH_SIZE]
+            batch_embeddings, batch_total_tokens = self._call_embed(
+                batch_texts,
+                input_type=input_type,
+            )
+            all_embeddings.extend(batch_embeddings)
+            prompt_tokens += batch_total_tokens
+            total_tokens += batch_total_tokens
+
+        return build_batch_from_ordered_vectors(
+            all_embeddings,
+            model=self._model,
+            prompt_tokens=prompt_tokens,
+            total_tokens=total_tokens,
+        )
+
+    def _call_embed(
+        self,
+        texts: list[str],
+        *,
+        input_type: str,
+    ) -> tuple[list[list[float]], int]:
         try:
             response = self._client.embed(
                 texts,
@@ -53,10 +83,4 @@ class VoyageEmbeddingProvider(BaseEmbeddingProvider):
         except Exception as exc:
             raise_embedding_provider_error(exc)
 
-        total_tokens = response.total_tokens
-        return build_batch_from_ordered_vectors(
-            response.embeddings,
-            model=self._model,
-            prompt_tokens=total_tokens,
-            total_tokens=total_tokens,
-        )
+        return response.embeddings, response.total_tokens

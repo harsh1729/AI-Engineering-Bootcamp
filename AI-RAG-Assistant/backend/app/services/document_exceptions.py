@@ -26,5 +26,9 @@ class DocumentIngestionError(DocumentServiceError):
     """Raised when ingestion cannot pair chunks with embedding results."""
 
 
-class PineconeDimensionMismatchError(DocumentServiceError):
+class VectorDimensionMismatchError(DocumentServiceError):
+    """Raised when embedding vector dimension does not match the vector store."""
+
+
+class PineconeDimensionMismatchError(VectorDimensionMismatchError):
     """Raised when embedding vector dimension does not match the Pinecone index."""

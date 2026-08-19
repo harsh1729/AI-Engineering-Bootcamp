@@ -14,7 +14,9 @@ from app.factories.embedding_factory import EmbeddingFactory, EmbeddingProviderF
 from app.factories.vector_store_factory import VectorStoreFactory
 from app.models.rag_config import ChunkingStrategy, EmbeddingProviderType, VectorStoreType
 from app.vector_store.chroma_vector_store import ChromaVectorStore
+from app.vector_store.pgvector_vector_store import PgVectorVectorStore
 from app.vector_store.pinecone_vector_store import PineconeVectorStore
+from app.vector_store.qdrant_vector_store import QdrantVectorStore
 
 
 class TestChunkingFactory:
@@ -143,4 +145,128 @@ class TestVectorStoreFactory:
 
         assert openai_store._index_name == "ai-rag-openai-1536"
         assert voyage_store._index_name == "ai-rag-voyage-1024"
+        assert openai_store is not voyage_store
+
+    def test_create_pgvector_store(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            "app.factories.vector_store_factory.resolve_pgvector_table",
+            lambda provider: "doc_pg_embeddings_openai",
+        )
+        monkeypatch.setattr(
+            "app.factories.vector_store_factory.resolve_pgvector_dimension",
+            lambda provider: 1536,
+        )
+
+        store = VectorStoreFactory.create(
+            VectorStoreType.PGVECTOR,
+            embedding_provider=EmbeddingProviderType.OPENAI,
+        )
+
+        assert isinstance(store, PgVectorVectorStore)
+        assert store._table_name == "doc_pg_embeddings_openai"
+
+    def test_create_pgvector_store_requires_embedding_provider(self) -> None:
+        with pytest.raises(ValueError, match="embedding_provider is required"):
+            VectorStoreFactory.create(VectorStoreType.PGVECTOR)
+
+    def test_create_pgvector_store_uses_provider_specific_table(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(
+            "app.factories.vector_store_factory.resolve_pgvector_table",
+            lambda provider: {
+                "openai": "doc_pg_embeddings_openai",
+                "voyage": "doc_pg_embeddings_voyage",
+                "cohere": "doc_pg_embeddings_cohere",
+            }[provider],
+        )
+        monkeypatch.setattr(
+            "app.factories.vector_store_factory.resolve_pgvector_dimension",
+            lambda provider: 1536 if provider in {"openai", "cohere"} else 1024,
+        )
+
+        openai_store = VectorStoreFactory.create(
+            VectorStoreType.PGVECTOR,
+            embedding_provider=EmbeddingProviderType.OPENAI,
+        )
+        voyage_store = VectorStoreFactory.create(
+            VectorStoreType.PGVECTOR,
+            embedding_provider=EmbeddingProviderType.VOYAGE,
+        )
+
+        assert openai_store._table_name == "doc_pg_embeddings_openai"
+        assert voyage_store._table_name == "doc_pg_embeddings_voyage"
+        assert openai_store is not voyage_store
+
+    def test_create_qdrant_store(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        mock_client = MagicMock()
+        mock_client.collection_exists.return_value = True
+        monkeypatch.setattr(
+            "app.vector_store.qdrant_vector_store.QdrantClient",
+            MagicMock(return_value=mock_client),
+        )
+        monkeypatch.setattr(
+            "app.vector_store.qdrant_vector_store.QDRANT_URL",
+            "http://localhost:6333",
+        )
+        monkeypatch.setattr(
+            "app.factories.vector_store_factory.resolve_qdrant_collection",
+            lambda provider: "ai-rag-openai-1536",
+        )
+        monkeypatch.setattr(
+            "app.factories.vector_store_factory.resolve_qdrant_dimension",
+            lambda provider: 1536,
+        )
+
+        store = VectorStoreFactory.create(
+            VectorStoreType.QDRANT,
+            embedding_provider=EmbeddingProviderType.OPENAI,
+        )
+
+        assert isinstance(store, QdrantVectorStore)
+        assert store._collection_name == "ai-rag-openai-1536"
+
+    def test_create_qdrant_store_requires_embedding_provider(self) -> None:
+        with pytest.raises(ValueError, match="embedding_provider is required"):
+            VectorStoreFactory.create(VectorStoreType.QDRANT)
+
+    def test_create_qdrant_store_uses_provider_specific_collection(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        mock_client = MagicMock()
+        mock_client.collection_exists.return_value = True
+        monkeypatch.setattr(
+            "app.vector_store.qdrant_vector_store.QdrantClient",
+            MagicMock(return_value=mock_client),
+        )
+        monkeypatch.setattr(
+            "app.vector_store.qdrant_vector_store.QDRANT_URL",
+            "http://localhost:6333",
+        )
+        monkeypatch.setattr(
+            "app.factories.vector_store_factory.resolve_qdrant_collection",
+            lambda provider: {
+                "openai": "ai-rag-openai-1536",
+                "voyage": "ai-rag-voyage-1024",
+                "cohere": "ai-rag-cohere-1536",
+            }[provider],
+        )
+        monkeypatch.setattr(
+            "app.factories.vector_store_factory.resolve_qdrant_dimension",
+            lambda provider: 1536 if provider in {"openai", "cohere"} else 1024,
+        )
+
+        openai_store = VectorStoreFactory.create(
+            VectorStoreType.QDRANT,
+            embedding_provider=EmbeddingProviderType.OPENAI,
+        )
+        voyage_store = VectorStoreFactory.create(
+            VectorStoreType.QDRANT,
+            embedding_provider=EmbeddingProviderType.VOYAGE,
+        )
+
+        assert openai_store._collection_name == "ai-rag-openai-1536"
+        assert voyage_store._collection_name == "ai-rag-voyage-1024"
         assert openai_store is not voyage_store

@@ -19,6 +19,8 @@ class EmbeddingProviderType(StrEnum):
 class VectorStoreType(StrEnum):
     CHROMA = "chroma"
     PINECONE = "pinecone"
+    PGVECTOR = "pgvector"
+    QDRANT = "qdrant"
 
 
 class RagOptions(BaseModel):
@@ -43,6 +45,16 @@ class PineconeIndexCatalogEntry(BaseModel):
     dimension: int
 
 
+class PgVectorTableCatalogEntry(BaseModel):
+    table_name: str
+    dimension: int
+
+
+class QdrantCollectionCatalogEntry(BaseModel):
+    collection_name: str
+    dimension: int
+
+
 class RagOptionsCatalogResponse(BaseModel):
     chunking_strategies: list[RagOptionsCatalogItem]
     embedding_providers: list[RagOptionsCatalogItem]
@@ -50,3 +62,5 @@ class RagOptionsCatalogResponse(BaseModel):
     embedding_models: dict[str, str]
     defaults: RagOptions
     pinecone_indexes: dict[str, PineconeIndexCatalogEntry] | None = None
+    pgvector_tables: dict[str, PgVectorTableCatalogEntry] | None = None
+    qdrant_collections: dict[str, QdrantCollectionCatalogEntry] | None = None

@@ -227,6 +227,103 @@ def pinecone_indexes_catalog() -> dict[str, dict[str, int | str]]:
         for provider in PINECONE_INDEX_BY_PROVIDER
     }
 
+# pgvector vector store (app.vector_store.pgvector_vector_store).
+# One table per embedding provider (dimensions must match the provider's vectors).
+PGVECTOR_ENABLED = os.getenv("PGVECTOR_ENABLED", "true").lower() in ("true", "1", "yes")
+
+PGVECTOR_TABLE_OPENAI = os.getenv("PGVECTOR_TABLE_OPENAI", "doc_pg_embeddings_openai")
+PGVECTOR_TABLE_VOYAGE = os.getenv("PGVECTOR_TABLE_VOYAGE", "doc_pg_embeddings_voyage")
+PGVECTOR_TABLE_COHERE = os.getenv("PGVECTOR_TABLE_COHERE", "doc_pg_embeddings_cohere")
+
+PGVECTOR_TABLE_BY_PROVIDER: dict[str, str] = {
+    "openai": PGVECTOR_TABLE_OPENAI,
+    "voyage": PGVECTOR_TABLE_VOYAGE,
+    "cohere": PGVECTOR_TABLE_COHERE,
+}
+
+
+def resolve_pgvector_table(embedding_provider: str) -> str:
+    """Return the pgvector table name for an embedding provider."""
+    table = PGVECTOR_TABLE_BY_PROVIDER.get(embedding_provider)
+    if not table:
+        raise ValueError(
+            f"No pgvector table configured for embedding provider '{embedding_provider}'."
+        )
+    return table
+
+
+def resolve_pgvector_dimension(embedding_provider: str) -> int:
+    """Return the expected vector dimension for an embedding provider's pgvector table."""
+    return resolve_pinecone_dimension(embedding_provider)
+
+
+def pgvector_tables_catalog() -> dict[str, dict[str, int | str]]:
+    """Return embedding_provider -> {table_name, dimension} for API consumers."""
+    return {
+        provider: {
+            "table_name": PGVECTOR_TABLE_BY_PROVIDER[provider],
+            "dimension": resolve_pgvector_dimension(provider),
+        }
+        for provider in PGVECTOR_TABLE_BY_PROVIDER
+    }
+
+# Qdrant vector store (app.vector_store.qdrant_vector_store).
+# One collection per embedding provider (dimensions must match the provider's vectors).
+QDRANT_URL = os.getenv("QDRANT_URL")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+
+QDRANT_COLLECTION_OPENAI = os.getenv("QDRANT_COLLECTION_OPENAI", "ai-rag-openai-1536")
+QDRANT_COLLECTION_VOYAGE = os.getenv("QDRANT_COLLECTION_VOYAGE", "ai-rag-voyage-1024")
+QDRANT_COLLECTION_COHERE = os.getenv("QDRANT_COLLECTION_COHERE", "ai-rag-cohere-1536")
+
+QDRANT_DIMENSION_OPENAI = _int_env("QDRANT_DIMENSION_OPENAI", 1536)
+QDRANT_DIMENSION_VOYAGE = _int_env("QDRANT_DIMENSION_VOYAGE", 1024)
+QDRANT_DIMENSION_COHERE = _int_env("QDRANT_DIMENSION_COHERE", 1536)
+
+QDRANT_COLLECTION_BY_PROVIDER: dict[str, str] = {
+    "openai": QDRANT_COLLECTION_OPENAI,
+    "voyage": QDRANT_COLLECTION_VOYAGE,
+    "cohere": QDRANT_COLLECTION_COHERE,
+}
+
+QDRANT_DIMENSION_BY_PROVIDER: dict[str, int] = {
+    "openai": QDRANT_DIMENSION_OPENAI,
+    "voyage": QDRANT_DIMENSION_VOYAGE,
+    "cohere": QDRANT_DIMENSION_COHERE,
+}
+
+
+def resolve_qdrant_collection(embedding_provider: str) -> str:
+    """Return the Qdrant collection name for an embedding provider."""
+    collection = QDRANT_COLLECTION_BY_PROVIDER.get(embedding_provider)
+    if not collection:
+        raise ValueError(
+            f"No Qdrant collection configured for embedding provider '{embedding_provider}'."
+        )
+    return collection
+
+
+def resolve_qdrant_dimension(embedding_provider: str) -> int:
+    """Return the expected vector dimension for an embedding provider's Qdrant collection."""
+    dimension = QDRANT_DIMENSION_BY_PROVIDER.get(embedding_provider)
+    if dimension is None:
+        raise ValueError(
+            "No Qdrant dimension configured for embedding provider "
+            f"'{embedding_provider}'."
+        )
+    return dimension
+
+
+def qdrant_collections_catalog() -> dict[str, dict[str, int | str]]:
+    """Return embedding_provider -> {collection_name, dimension} for API consumers."""
+    return {
+        provider: {
+            "collection_name": QDRANT_COLLECTION_BY_PROVIDER[provider],
+            "dimension": QDRANT_DIMENSION_BY_PROVIDER[provider],
+        }
+        for provider in QDRANT_COLLECTION_BY_PROVIDER
+    }
+
 # Temporary flags for structured pipeline logging during development.
 # Set RAG_DEBUG=true or CHUNKING_DEBUG=true in .env.
 RAG_DEBUG = os.getenv("RAG_DEBUG", "false").lower() in ("true", "1", "yes")
@@ -242,3 +339,10 @@ DATABASE_URL = os.getenv(
     "postgresql+asyncpg://postgres:password@localhost:5432/ai_rag_assistant",
 )
 DATABASE_ECHO = os.getenv("DATABASE_ECHO", "false").lower() in ("true", "1", "yes")
+
+
+def sync_database_url() -> str:
+    """Convert the async SQLAlchemy DATABASE_URL to a sync psycopg URL."""
+    if DATABASE_URL.startswith("postgresql+asyncpg://"):
+        return DATABASE_URL.replace("postgresql+asyncpg://", "postgresql+psycopg://", 1)
+    return DATABASE_URL

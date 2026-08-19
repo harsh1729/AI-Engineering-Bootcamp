@@ -4,7 +4,10 @@ import pytest
 
 from app.embeddings.embedding_exceptions import EmbeddingProviderError, EmbeddingRateLimitError
 from app.embeddings.embedding_models import EmbeddingUsage, EmbeddingVector
-from app.embeddings.voyage_embedding_provider import VoyageEmbeddingProvider
+from app.embeddings.voyage_embedding_provider import (
+    VOYAGE_EMBED_BATCH_SIZE,
+    VoyageEmbeddingProvider,
+)
 from voyageai.error import RateLimitError as VoyageRateLimitError, VoyageError
 
 MODEL = "voyage-4-lite"
@@ -66,6 +69,32 @@ class TestVoyageEmbeddingProviderEmbedBatch:
         )
         assert len(batch.embeddings) == 3
         assert [vector.embedding for vector in batch.embeddings] == [[0.1], [0.2], [0.3]]
+
+    def test_large_batch_is_split_into_chunks_of_five_hundred(
+        self, provider: VoyageEmbeddingProvider, mock_client: MagicMock
+    ) -> None:
+        texts = [f"chunk-{index}" for index in range(VOYAGE_EMBED_BATCH_SIZE + 1)]
+        mock_client.embed.side_effect = [
+            _make_voyage_response(
+                embeddings=[[float(index)] for index in range(VOYAGE_EMBED_BATCH_SIZE)],
+                total_tokens=100,
+            ),
+            _make_voyage_response(
+                embeddings=[[float(VOYAGE_EMBED_BATCH_SIZE)]],
+                total_tokens=5,
+            ),
+        ]
+
+        batch = provider.embed_batch(texts)
+
+        assert mock_client.embed.call_count == 2
+        first_call_texts = mock_client.embed.call_args_list[0].args[0]
+        second_call_texts = mock_client.embed.call_args_list[1].args[0]
+        assert len(first_call_texts) == VOYAGE_EMBED_BATCH_SIZE
+        assert len(second_call_texts) == 1
+        assert len(batch.embeddings) == VOYAGE_EMBED_BATCH_SIZE + 1
+        assert batch.usage.prompt_tokens == 105
+        assert batch.usage.total_tokens == 105
 
     def test_empty_input_returns_synthetic_zero_usage_without_api_call(
         self, provider: VoyageEmbeddingProvider, mock_client: MagicMock

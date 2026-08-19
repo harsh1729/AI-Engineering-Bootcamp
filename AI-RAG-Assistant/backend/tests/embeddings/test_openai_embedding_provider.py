@@ -6,7 +6,10 @@ from openai import APIStatusError, RateLimitError
 
 from app.embeddings.embedding_exceptions import EmbeddingProviderError, EmbeddingRateLimitError
 from app.embeddings.embedding_models import EmbeddingBatchResponse, EmbeddingUsage, EmbeddingVector
-from app.embeddings.openai_embedding_provider import OpenAIEmbeddingProvider
+from app.embeddings.openai_embedding_provider import (
+    OPENAI_EMBED_BATCH_SIZE,
+    OpenAIEmbeddingProvider,
+)
 
 MODEL = "text-embedding-3-small"
 
@@ -161,6 +164,34 @@ class TestOpenAIEmbeddingProviderEmbedBatch:
         assert batch.usage.prompt_tokens == 20
         assert batch.usage.total_tokens == 25
         assert all(isinstance(vector, EmbeddingVector) for vector in batch.embeddings)
+
+    def test_large_batch_is_split_into_chunks_of_five_hundred(
+        self, provider: OpenAIEmbeddingProvider, mock_client: MagicMock
+    ) -> None:
+        texts = [f"chunk-{index}" for index in range(OPENAI_EMBED_BATCH_SIZE + 1)]
+        mock_client.embeddings.create.side_effect = [
+            _make_openai_response(
+                embeddings=[[float(index)] for index in range(OPENAI_EMBED_BATCH_SIZE)],
+                prompt_tokens=100,
+                total_tokens=100,
+            ),
+            _make_openai_response(
+                embeddings=[[float(OPENAI_EMBED_BATCH_SIZE)]],
+                prompt_tokens=5,
+                total_tokens=5,
+            ),
+        ]
+
+        batch = provider.embed_batch(texts)
+
+        assert mock_client.embeddings.create.call_count == 2
+        first_call_texts = mock_client.embeddings.create.call_args_list[0].kwargs["input"]
+        second_call_texts = mock_client.embeddings.create.call_args_list[1].kwargs["input"]
+        assert len(first_call_texts) == OPENAI_EMBED_BATCH_SIZE
+        assert len(second_call_texts) == 1
+        assert len(batch.embeddings) == OPENAI_EMBED_BATCH_SIZE + 1
+        assert batch.usage.prompt_tokens == 105
+        assert batch.usage.total_tokens == 105
 
     def test_empty_input_returns_synthetic_zero_usage_without_api_call(
         self, provider: OpenAIEmbeddingProvider, mock_client: MagicMock

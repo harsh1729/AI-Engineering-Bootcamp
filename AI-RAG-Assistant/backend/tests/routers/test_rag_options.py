@@ -25,7 +25,13 @@ def client() -> TestClient:
 
 
 class TestRagOptionsCatalog:
-    def test_returns_available_rag_options(self, client: TestClient) -> None:
+    def test_returns_available_rag_options(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr("app.routers.documents.QDRANT_URL", "http://localhost:6333")
+
         response = client.get("/rag/options")
 
         assert response.status_code == 200
@@ -45,6 +51,10 @@ class TestRagOptionsCatalog:
         assert payload["embedding_models"]["cohere"] == "embed-v4.0"
         assert any(item["value"] == "chroma" for item in payload["vector_stores"])
         assert any(item["value"] == "pinecone" for item in payload["vector_stores"])
+        assert any(item["value"] == "pgvector" for item in payload["vector_stores"])
+        assert any(item["value"] == "qdrant" for item in payload["vector_stores"])
+        assert payload["pgvector_tables"]["openai"]["table_name"] == "doc_pg_embeddings_openai"
+        assert payload["qdrant_collections"]["openai"]["collection_name"] == "ai-rag-openai-1536"
 
 
 class TestUploadWithRagOptions:

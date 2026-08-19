@@ -84,13 +84,46 @@ export default function MessageInput({
     );
   };
 
-  const multipleDocuments = attachments.length > 1;
-  const successMessage = multipleDocuments
-    ? "✅ Documents processed successfully."
-    : "✅ Document processed successfully.";
-  const promptMessage = multipleDocuments
-    ? "What would you like to know about these documents?"
-    : "What would you like to know about this document?";
+  const getAttachmentFeedback = (items) => {
+    const imageCount = items.filter((item) => item.contentType === "image").length;
+    const documentCount = items.length - imageCount;
+
+    if (imageCount === items.length) {
+      return {
+        successMessage:
+          imageCount > 1
+            ? "✅ Images processed successfully."
+            : "✅ Image processed successfully.",
+        promptMessage:
+          imageCount > 1
+            ? "Ask about text visible in these images. Only OCR-extracted text is searchable—not visual details."
+            : "Ask about text visible in this image. Only OCR-extracted text is searchable—not visual details.",
+      };
+    }
+
+    if (documentCount === items.length) {
+      return {
+        successMessage:
+          documentCount > 1
+            ? "✅ Documents processed successfully."
+            : "✅ Document processed successfully.",
+        promptMessage:
+          documentCount > 1
+            ? "What would you like to know about these documents?"
+            : "What would you like to know about this document?",
+      };
+    }
+
+    return {
+      successMessage: "✅ Attachments processed successfully.",
+      promptMessage:
+        "Ask about document content or OCR text from images. Visual details in photos aren't searchable.",
+    };
+  };
+
+  const { successMessage, promptMessage } = getAttachmentFeedback(attachments);
+
+  const attachmentIcon = (contentType) => (contentType === "image" ? "🖼️" : "📄");
 
   return (
     <div className="message-input">
@@ -104,7 +137,7 @@ export default function MessageInput({
                 return (
                   <div key={attachment.documentId} className="attachment-chip">
                     <span className="attachment-chip-icon" aria-hidden="true">
-                      📄
+                      {attachmentIcon(attachment.contentType)}
                     </span>
                     <div className="attachment-chip-body">
                       <div className="attachment-chip-header">

@@ -19,14 +19,24 @@ from app.models.rag_config import (
     RagOptionsCatalogItem,
     RagOptionsCatalogResponse,
     PineconeIndexCatalogEntry,
+    PgVectorTableCatalogEntry,
+    QdrantCollectionCatalogEntry,
     VectorStoreType,
 )
-from app.config import PINECONE_API_KEY, pinecone_indexes_catalog, resolve_embedding_model
+from app.config import (
+    PGVECTOR_ENABLED,
+    PINECONE_API_KEY,
+    QDRANT_URL,
+    pgvector_tables_catalog,
+    pinecone_indexes_catalog,
+    qdrant_collections_catalog,
+    resolve_embedding_model,
+)
 from app.services.document_access_service import DocumentAccessDeniedError, DocumentAccessService
 from app.services.document_exceptions import (
     DocumentIngestionError,
     DocumentNotFoundError,
-    PineconeDimensionMismatchError,
+    VectorDimensionMismatchError,
     DocumentParsingError,
     DocumentTooLargeError,
     UnsupportedDocumentTypeError,
@@ -99,6 +109,16 @@ def get_rag_options_catalog() -> RagOptionsCatalogResponse:
                 label="Pinecone",
                 enabled=bool(PINECONE_API_KEY),
             ),
+            RagOptionsCatalogItem(
+                value=VectorStoreType.PGVECTOR,
+                label="pgvector",
+                enabled=PGVECTOR_ENABLED,
+            ),
+            RagOptionsCatalogItem(
+                value=VectorStoreType.QDRANT,
+                label="Qdrant",
+                enabled=bool(QDRANT_URL),
+            ),
         ],
         embedding_models={
             provider.value: resolve_embedding_model(provider.value)
@@ -111,6 +131,22 @@ def get_rag_options_catalog() -> RagOptionsCatalogResponse:
                 for provider, entry in pinecone_indexes_catalog().items()
             }
             if PINECONE_API_KEY
+            else None
+        ),
+        pgvector_tables=(
+            {
+                provider: PgVectorTableCatalogEntry(**entry)
+                for provider, entry in pgvector_tables_catalog().items()
+            }
+            if PGVECTOR_ENABLED
+            else None
+        ),
+        qdrant_collections=(
+            {
+                provider: QdrantCollectionCatalogEntry(**entry)
+                for provider, entry in qdrant_collections_catalog().items()
+            }
+            if QDRANT_URL
             else None
         ),
     )
@@ -197,7 +233,7 @@ async def upload_document(
     except DocumentParsingError as exc:
         logger.exception("Document ingestion failed for document_id=%s", document_id)
         raise HTTPException(status_code=500, detail="Document processing failed.") from exc
-    except PineconeDimensionMismatchError as exc:
+    except VectorDimensionMismatchError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except DocumentIngestionError as exc:
         logger.exception("Document ingestion failed for document_id=%s", document_id)

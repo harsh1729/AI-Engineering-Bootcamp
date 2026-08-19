@@ -20,4 +20,6 @@ export const EMBEDDING_PROVIDERS = [
 export const VECTOR_STORES = [
   { value: "chroma", label: "Chroma" },
   { value: "pinecone", label: "Pinecone" },
+  { value: "pgvector", label: "pgvector" },
+  { value: "qdrant", label: "Qdrant" },
 ];
